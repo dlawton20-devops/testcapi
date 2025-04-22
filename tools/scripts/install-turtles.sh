@@ -6,24 +6,40 @@ if ! command -v kubectl &> /dev/null; then
     exit 1
 fi
 
-# Create namespace for Turtles
-kubectl create namespace turtles-system
+# Check if Helm is available
+if ! command -v helm &> /dev/null; then
+    echo "Helm is required but not installed"
+    exit 1
+fi
 
-# Install Turtles
-kubectl apply -f https://github.com/rancher/turtles/releases/download/v0.1.0/turtles.yaml
+# Create namespace for Turtles and CAPO
+kubectl create namespace turtles-system
+kubectl create namespace capo-system
+
+# Add Turtles Helm repository
+helm repo add turtles https://rancher.github.io/turtles
+helm repo update
+
+# Install Turtles using Helm
+helm install rancher-turtles turtles/rancher-turtles --version v0.16.0 \
+    -n turtles-system \
+    --dependency-update \
+    --create-namespace --wait \
+    --timeout 180s
+
+# Wait for Turtles deployment to be ready
+echo "Waiting for Turtles to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/rancher-turtles-controller-manager -n turtles-system
 
 # Install CAPO (Cluster API Provider for OpenStack)
-kubectl apply -f https://github.com/kubernetes-sigs/cluster-api-provider-openstack/releases/download/v0.7.0/infrastructure-components.yaml
+echo "Installing CAPO..."
+kubectl apply -f https://github.com/kubernetes-sigs/cluster-api-provider-openstack/releases/download/v0.7.0/infrastructure-components.yaml -n capo-system
 
-# Install Cluster API core components
-kubectl apply -f https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.5.0/cluster-api-components.yaml
-
-# Wait for deployments to be ready
-echo "Waiting for Turtles and CAPO to be ready..."
-kubectl wait --for=condition=available --timeout=300s deployment/turtles-controller-manager -n turtles-system
+# Wait for CAPO deployment to be ready
+echo "Waiting for CAPO to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/capo-controller-manager -n capo-system
 
-# Create OpenStack credentials secret
+# Create OpenStack credentials secret (if using CAPO)
 kubectl create secret generic openstack-credentials \
   --from-literal=OS_AUTH_URL=${OS_AUTH_URL} \
   --from-literal=OS_USERNAME=${OS_USERNAME} \
@@ -34,7 +50,7 @@ kubectl create secret generic openstack-credentials \
   --from-literal=OS_REGION_NAME=${OS_REGION_NAME} \
   -n turtles-system
 
-# Create Turtles configuration
+# Create Turtles configuration (if needed)
 cat <<EOF | kubectl apply -f -
 apiVersion: turtles.infrastructure.cluster.x-k8s.io/v1alpha1
 kind: OpenStackClusterTemplate
