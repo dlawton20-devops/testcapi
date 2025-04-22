@@ -1,0 +1,36 @@
+# OpenStack Provider Configuration
+openstack:
+  # Image configuration
+  image:
+    name: ${OS_IMAGE_NAME}
+    id: ${OS_IMAGE_ID}
+  
+  # Flavor configuration
+  flavor:
+    name: ${OS_FLAVOR_NAME}
+  
+  # Network configuration
+  network:
+    id: ${OS_NETWORK_ID}
+    subnet:
+      id: ${OS_SUBNET_ID}
+  
+  # Security groups
+  securityGroups:
+    - name: ${CLUSTER_NAME}-control-plane
+    - name: ${CLUSTER_NAME}-worker
+  
+  # SSH key
+  sshKeyName: ${CLUSTER_NAME}-key
+  
+  # Control plane configuration
+  controlPlane:
+    replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+    machine:
+      flavor: ${OS_FLAVOR_NAME}
+  
+  # Worker configuration
+  workers:
+    replicas: ${WORKER_MACHINE_COUNT}
+    machine:
+      flavor: ${OS_FLAVOR_NAME} 

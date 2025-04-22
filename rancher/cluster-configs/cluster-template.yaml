@@ -1,0 +1,140 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: ${CLUSTER_NAME}
+  namespace: fleet-default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+    services:
+      cidrBlocks: ["10.128.0.0/12"]
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: ${CLUSTER_NAME}-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: ${CLUSTER_NAME}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: ${CLUSTER_NAME}
+spec:
+  identityRef:
+    kind: Secret
+    name: openstack-credentials
+  cloudName: openstack
+  controlPlaneEndpoint:
+    host: ""
+    port: 6443
+  network:
+    id: ${OS_NETWORK_ID}
+  subnet:
+    id: ${OS_SUBNET_ID}
+  floatingIPNetwork:
+    id: ${OS_FLOATING_IP_NETWORK}
+  externalNetwork:
+    id: ${OS_EXTERNAL_NETWORK_ID}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: v1.26.0
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackMachineTemplate
+    name: ${CLUSTER_NAME}-control-plane
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          cloud-provider: openstack
+          cloud-config: /etc/kubernetes/cloud.conf
+      controllerManager:
+        extraArgs:
+          cloud-provider: openstack
+          cloud-config: /etc/kubernetes/cloud.conf
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: openstack
+          cloud-config: /etc/kubernetes/cloud.conf
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: openstack
+          cloud-config: /etc/kubernetes/cloud.conf
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  template:
+    spec:
+      cloudName: openstack
+      flavor: ${OS_FLAVOR_NAME}
+      image: ${OS_IMAGE_NAME}
+      sshKeyName: ${CLUSTER_NAME}-key
+      networks:
+      - uuid: ${OS_NETWORK_ID}
+      securityGroups:
+      - name: ${CLUSTER_NAME}-control-plane
+      userDataSecretName: ${CLUSTER_NAME}-control-plane-userdata
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-worker
+spec:
+  template:
+    spec:
+      cloudName: openstack
+      flavor: ${OS_FLAVOR_NAME}
+      image: ${OS_IMAGE_NAME}
+      sshKeyName: ${CLUSTER_NAME}-key
+      networks:
+      - uuid: ${OS_NETWORK_ID}
+      securityGroups:
+      - name: ${CLUSTER_NAME}-worker
+      userDataSecretName: ${CLUSTER_NAME}-worker-userdata
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: ${CLUSTER_NAME}-worker
+spec:
+  replicas: ${WORKER_MACHINE_COUNT}
+  clusterName: ${CLUSTER_NAME}
+  template:
+    spec:
+      clusterName: ${CLUSTER_NAME}
+      version: v1.26.0
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: ${CLUSTER_NAME}-worker
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: ${CLUSTER_NAME}-worker
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-worker
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: openstack
+            cloud-config: /etc/kubernetes/cloud.conf 
