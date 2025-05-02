@@ -27,7 +27,6 @@ resource "rancher2_cluster" "downstream" {
       url      = var.harbor_url
       user     = var.harbor_username
       password = var.harbor_password
-      is_default = true
     }
 
     # Configure containerd to use Harbor as pull-through cache
@@ -41,32 +40,19 @@ resource "rancher2_cluster" "downstream" {
       }
       containerd {
         extra_args = {
-          "config-file" = "/etc/containerd/config.toml"
+          "config-file" = "/etc/rancher/rke2/registries.yaml"
         }
       }
     }
 
-    # Add containerd configuration for pull-through cache
-    extra_args = {
-      "kubelet" = {
-        "container-runtime" = "remote"
-        "container-runtime-endpoint" = "unix:///run/containerd/containerd.sock"
-      }
-      "containerd" = {
-        "config-file" = <<-EOT
-          version = 2
-          [plugins."io.containerd.grpc.v1.cri".registry]
-            [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
-              [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-                endpoint = ["https://registry.dci.test.com"]
-              [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.dci.test.com"]
-                endpoint = ["https://registry.dci.test.com"]
-            [plugins."io.containerd.grpc.v1.cri".registry.configs]
-              [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.dci.test.com".auth]
-                username = "${var.harbor_username}"
-                password = "${var.harbor_password}"
-        EOT
-      }
+    # Add registries.yaml as a file
+    files {
+      name     = "registries.yaml"
+      contents = templatefile("${path.module}/registries.yaml", {
+        HARBOR_USERNAME = var.harbor_username
+        HARBOR_PASSWORD = var.harbor_password
+      })
+      path     = "/etc/rancher/rke2/registries.yaml"
     }
   }
 }
