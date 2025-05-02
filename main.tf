@@ -22,13 +22,6 @@ resource "rancher2_cluster" "downstream" {
       plugin = "canal"
     }
 
-    # Configure registry settings
-    private_registries {
-      url      = var.harbor_url
-      user     = var.harbor_username
-      password = var.harbor_password
-    }
-
     # Configure containerd to use Harbor as pull-through cache
     services {
       kubelet {
