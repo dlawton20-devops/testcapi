@@ -1,0 +1,14 @@
+mirrors:
+  "docker.io":
+    endpoint:
+      - "https://registry.dci.test.com"
+  "rke2-registry.rancher.io":
+    endpoint:
+      - "https://registry.dci.test.com"
+configs:
+  "registry.dci.test.com":
+    auth:
+      username: "your_username"
+      password: "your_password"
+    tls:
+      insecure_skip_verify: true 
