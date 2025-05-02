@@ -39,6 +39,32 @@ resource "rancher2_cluster_v2" "downstream" {
           network_name = var.openstack_network_name
         }
       }
+      machine_selector_config {
+        config = {
+          "cloud-init" = <<-EOT
+            #cloud-config
+            write_files:
+            - path: /etc/rancher/rke2/registries.yaml
+              owner: root:root
+              permissions: '0644'
+              content: |
+                mirrors:
+                  "docker.io":
+                    endpoint:
+                      - "https://registry.dci.test.com"
+                  "rke2-registry.rancher.io":
+                    endpoint:
+                      - "https://registry.dci.test.com"
+                configs:
+                  "registry.dci.test.com":
+                    auth:
+                      username: "${var.harbor_username}"
+                      password: "${var.harbor_password}"
+                    tls:
+                      insecure_skip_verify: true
+          EOT
+        }
+      }
     }
 
     machine_pools {
@@ -61,18 +87,31 @@ resource "rancher2_cluster_v2" "downstream" {
           network_name = var.openstack_network_name
         }
       }
-    }
-
-    # Configure registries
-    registries {
-      configs {
-        hostname = "registry.dci.test.com"
-        auth_config_secret_name = "harbor-auth"
-        insecure_skip_verify = true
-      }
-      mirrors {
-        hostname = "docker.io"
-        endpoints = ["https://registry.dci.test.com"]
+      machine_selector_config {
+        config = {
+          "cloud-init" = <<-EOT
+            #cloud-config
+            write_files:
+            - path: /etc/rancher/rke2/registries.yaml
+              owner: root:root
+              permissions: '0644'
+              content: |
+                mirrors:
+                  "docker.io":
+                    endpoint:
+                      - "https://registry.dci.test.com"
+                  "rke2-registry.rancher.io":
+                    endpoint:
+                      - "https://registry.dci.test.com"
+                configs:
+                  "registry.dci.test.com":
+                    auth:
+                      username: "${var.harbor_username}"
+                      password: "${var.harbor_password}"
+                    tls:
+                      insecure_skip_verify: true
+          EOT
+        }
       }
     }
   }
