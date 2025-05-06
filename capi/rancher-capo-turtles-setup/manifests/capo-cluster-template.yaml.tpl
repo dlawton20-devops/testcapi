@@ -1,8 +1,11 @@
+# Cluster definition with Rancher Turtles auto-import label for downstream clusters
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
   namespace: default
+  labels:
+    cluster-api.cattle.io/rancher-auto-import: "true"  # Label to auto-import the cluster into Rancher as a downstream cluster
 spec:
   clusterNetwork:
     pods:
@@ -10,15 +13,15 @@ spec:
     services:
       cidrBlocks: ["10.96.0.0/12"]
   controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-    kind: KubeadmControlPlane
+    apiVersion: controlplane.rke2.cattle.io/v1
+    kind: RKE2ControlPlane
     name: ${CLUSTER_NAME}-control-plane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: OpenStackCluster
     name: ${CLUSTER_NAME}
-
 ---
+# OpenStackCluster resource for provisioning infrastructure
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: OpenStackCluster
 metadata:
@@ -26,25 +29,17 @@ metadata:
   namespace: default
 spec:
   cloudName: ${OPENSTACK_CLOUD}
+  dnsNameservers: ["8.8.8.8"]
+  externalNetworkId: ${OPENSTACK_EXTERNAL_NETWORK_ID}
   network:
     id: ${OPENSTACK_NETWORK_ID}
-
+  subnets:
+    - uuid: ${OPENSTACK_SUBNET_ID}
+  managedSecurityGroups: true
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: OpenStackMachineTemplate
-metadata:
-  name: ${CLUSTER_NAME}-control-plane
-  namespace: default
-spec:
-  template:
-    spec:
-      flavor: ${CONTROL_PLANE_FLAVOR}
-      image: ${IMAGE_NAME}
-      sshKeyName: ${SSH_KEY}
-
----
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-kind: KubeadmControlPlane
+# RKE2ControlPlane for the control plane
+apiVersion: controlplane.rke2.cattle.io/v1
+kind: RKE2ControlPlane
 metadata:
   name: ${CLUSTER_NAME}-control-plane
   namespace: default
@@ -56,24 +51,31 @@ spec:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: OpenStackMachineTemplate
       name: ${CLUSTER_NAME}-control-plane
-  kubeadmConfigSpec:
-    clusterConfiguration:
-      apiServer:
-        extraArgs:
-          cloud-provider: external
-      controllerManager:
-        extraArgs:
-          cloud-provider: external
-    initConfiguration:
-      nodeRegistration:
-        kubeletExtraArgs:
-          cloud-provider: external
-    joinConfiguration:
-      nodeRegistration:
-        kubeletExtraArgs:
-          cloud-provider: external
-
+  etcd:
+    external:
+      endpoints:
+        - ${ETCD_ENDPOINTS}
+      caCertData: ${ETCD_CA_CERT}
+      certData: ${ETCD_CERT}
+      keyData: ${ETCD_KEY}
 ---
+# OpenStackMachineTemplate for the control plane
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      flavor: ${CONTROL_PLANE_FLAVOR}
+      image: ${IMAGE_NAME}
+      sshKeyName: ${SSH_KEY}
+      networks:
+        - uuid: ${OPENSTACK_NETWORK_ID}
+      availabilityZone: ${OPENSTACK_AZ}
+---
+# OpenStackMachineTemplate for worker nodes
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: OpenStackMachineTemplate
 metadata:
@@ -85,8 +87,11 @@ spec:
       flavor: ${WORKER_FLAVOR}
       image: ${IMAGE_NAME}
       sshKeyName: ${SSH_KEY}
-
+      networks:
+        - uuid: ${OPENSTACK_NETWORK_ID}
+      availabilityZone: ${OPENSTACK_AZ}
 ---
+# MachineDeployment for worker nodes
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
@@ -113,8 +118,8 @@ spec:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: OpenStackMachineTemplate
         name: ${CLUSTER_NAME}-worker
-
 ---
+# KubeadmConfigTemplate for worker nodes
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
@@ -126,4 +131,4 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            cloud-provider: external 
+            cloud-provider: external
