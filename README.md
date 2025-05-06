@@ -31,3 +31,5 @@ This environment is designed to mirror the production setup and should be used f
 - Validating OpenStack integrations
 - Testing Rancher cluster management
 - Developing and testing cluster templates 
+
+rancher-capo-turtles-setup/ 

@@ -1,0 +1,8 @@
+# Replace with the actual Turtles operator/workload manifest
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: turtles
+  namespace: turtles
+spec:
+  # ...

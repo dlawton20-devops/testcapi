@@ -1,0 +1,7 @@
+# Example CAPO cluster template
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: turtles-downstream
+spec:
+  # ... your cluster spec here ... 
