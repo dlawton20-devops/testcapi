@@ -1,0 +1,194 @@
+variables:
+  VAULT_ADDR: "https://vault.linux.test.CHANGEnetwork.co.uk"
+  VAULT_NAMESPACE: "robot/app22112"
+  VAULT_ROLE: "jcy-cth01-pipeline"
+  VAULT_AUTH_PATH: "jwt"
+  GITLAB_USERNAME: "david.lawton"
+  SECURE_FILES_DOWNLOAD_PATH: '/home/lawtondd/builds/secure-files/'
+  RC_FILE_CONTENT: $RC_FILE_CONTENT
+  PDSN_API_KEY: $PDSN_API_KEY
+  GITLAB_PAT: $GITLAB_PAT
+  CAAS_PLATFORM_PASSWORD: $CAAS_PLATFORM_PASSWORD
+  CAAS_TENANT_PASSWORD: $CAAS_TENANT_PASSWORD
+  HTTP_PROXY: $HTTP_PROXY
+  HTTPS_PROXY: $HTTPS_PROXY
+  NO_PROXY: $NO_PROXY
+  OS_CLIENT_CONFIG_FILE: /tmp/clouds.yaml
+  SSH_KEY_NAME: "gitlab-runner-${CI_ENVIRONMENT_NAME}"
+  GENERATE_NEW_KEYS: "false"
+  TF_INPUT: false
+  TF_IN_AUTOMATION: true
+  TERRAGRUNT_TFPATH: /usr/local/bin/terraform
+
+before_script:
+  - export VAULT_ADDR="https://vault.linux.test.CHANGEnetwork.co.uk"
+  - export VAULT_NAMESPACE="robot/app22112"
+  - export VAULT_SKIP_VERIFY=true
+  - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+  - if [ -z "$VAULT_TOKEN" ]; then echo "Failed to obtain Vault token"; exit 1; fi
+  - echo "Authenticated with Vault using ID token"
+  # Fetch and export all secrets
+  - SECRETS_JSON=$(vault kv get -format=json secrets/pipelines/cth01-pipeline)
+  - if [ -z "$SECRETS_JSON" ]; then echo "Failed to fetch secrets from Vault"; exit 1; fi
+  - echo "$SECRETS_JSON" | jq -r '.data.data | to_entries[] | "export \(.key)=\(.value)"' > /tmp/vault_env.sh
+  - source /tmp/vault_env.sh
+
+  # Set up proxy and other environment variables
+  - export http_proxy=$HTTP_PROXY
+  - export https_proxy=$HTTPS_PROXY
+  - export no_proxy=$NO_PROXY
+  - echo "Proxy and environment variables set"
+
+  # Set up git credentials (do not echo secrets)
+  - git config --global credential.helper store
+  - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+
+  # Replace tokens in YAML files (if needed)
+  - |
+    for file in tenant.yaml platform.yaml; do
+      [ -f "$file" ] || continue
+      for var in openstack_key_pair_name tenant openstack_service_account_username GIT_BRANCH_REF tenant_openstack_project_name tenant_cluster_network_name platform_network_name; do
+        sed -i "s|{{${var}}}|${!var}|g" "$file"
+      done
+    done
+
+image: your-registry/terraform-runner:latest
+
+stages:
+  - setup
+  - job_with_secrets
+  - terragrunt_plan
+  - approve
+  - admin_cluster_openstack_apply
+  - admin_cluster_helm_apply
+  - admin_cluster_rancher2_apply
+  - tenant_cluster_rancher2_apply
+
+setup:
+  stage: setup
+  tags: [cth01]
+  script:
+    - sudo apt-get update && sudo apt-get install -y ansible jq python3-openstackclient unzip
+    - sudo snap set system proxy.http="http://cloudproxy.nat.CHANGE.com:8080"
+    - sudo snap set system proxy.https="http://cloudproxy.nat.CHANGE.com:8080"
+    - sudo snap install terraform --classic
+    - sudo snap install kubectl --classic
+    - curl -L https://github.com/gruntwork-io/terragrunt/releases/download/v0.53.4/terragrunt_linux_amd64 -o /usr/local/bin/terragrunt
+    - sudo chmod 0755 /usr/local/bin/terragrunt
+    - curl -L -o /tmp/powerdns-terraform-provider.zip "https://gitlab.agile.nat.CHANGE.com/api/v4/projects/868282/packages/generic/powerdns-terraform-provider/1.6.0/powerdns-terraform-provider_1.6.0_linux_amd64.zip"
+    - unzip /tmp/powerdns-terraform-provider.zip -d /tmp/powerdns-terraform-provider_1.6.0_linux_amd64
+    - sudo install -D -m 0755 /tmp/powerdns-terraform-provider_1.6.0_linux_amd64/terraform-provider-powerdns /usr/local/share/terraform/plugins/nci.CHANGE.com/caas/powerdns/1.6.0/linux_amd64/terraform-provider-powerdns
+    - echo "Proxy settings and environment settings applied"
+
+job_with_secrets:
+  stage: job_with_secrets
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - echo "Job with secrets setup complete"
+
+terragrunt_plan:
+  stage: terragrunt_plan
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+    - echo "Authenticated with Vault using ID token"
+    - cd terraform/admin_cluster/openstack/
+    - git config --global credential.helper store
+    - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+    - printf "%s" "$SRC_FILE_CONTENT" > cas_caas_poc_1-openrc.sh
+    - terragrunt init
+    - terragrunt plan -out=tfplan
+    - terragrunt show -no-color tfplan > plan.txt
+  artifacts:
+    paths:
+      - terraform/admin_cluster/openstack/.terragrunt-cache/
+      - terraform/admin_cluster/openstack/plan.txt
+      - terraform/admin_cluster/openstack/tfplan
+    expire_in: 5 hour
+
+approve:
+  stage: approve
+  tags: [cth01]
+  script:
+    - echo "Waiting for manual approval to proceed with apply..."
+  when: manual
+  allow_failure: false
+
+admin_cluster_openstack_apply:
+  stage: admin_cluster_openstack_apply
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+    - echo "Authenticated with Vault using ID token"
+    - cd terraform/admin_cluster/openstack/
+    - git config --global credential.helper store
+    - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - terragrunt init
+    - terragrunt apply -auto-approve tfplan
+  dependencies:
+    - terragrunt_plan
+  when: always
+
+admin_cluster_helm_apply:
+  stage: admin_cluster_helm_apply
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+    - echo "Authenticated with Vault using ID token"
+    - git config --global credential.helper store
+    - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+    - cd terraform/admin_cluster/helm/
+    - terragrunt init
+    - terragrunt apply -auto-approve
+  dependencies:
+    - admin_cluster_openstack_apply
+
+admin_cluster_rancher2_apply:
+  stage: admin_cluster_rancher2_apply
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+    - echo "Authenticated with Vault using ID token"
+    - git config --global credential.helper store
+    - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+    - cd terraform/admin_cluster/rancher2/
+    - terragrunt init
+    - terragrunt apply -auto-approve
+  dependencies:
+    - admin_cluster_helm_apply
+
+tenant_cluster_rancher2_apply:
+  stage: tenant_cluster_rancher2_apply
+  tags: [cth01]
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_ADDR
+  script:
+    - export VAULT_TOKEN=$(vault write -field=token -namespace=$VAULT_NAMESPACE auth/jwt/login role=$VAULT_ROLE jwt=$VAULT_ID_TOKEN)
+    - echo "Authenticated with Vault using ID token"
+    - git config --global credential.helper store
+    - echo "https://${GITLAB_USERNAME}:${GITLAB_PAT}@gitlab.agile.nat.CHANGE.com" > ~/.git-credentials
+    - cd terraform/tenant_cluster/rancher2/
+    - terragrunt init
+    - terragrunt apply -auto-approve
+  dependencies:
+    - admin_cluster_rancher2_apply 
