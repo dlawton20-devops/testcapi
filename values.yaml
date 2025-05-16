@@ -1,0 +1,89 @@
+crds:
+  enabled: true  # Set to false if you want to manage CRDs manually
+
+cephClusterSpec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+  dashboard:
+    enabled: true
+    ssl: true
+  network:
+    hostNetwork: false
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    # Example of hardcoded nodes (uncomment if needed)
+    # nodes:
+    #   - name: "node1"
+    #     devices:
+    #       - name: "vdb"
+  placement:
+    all:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: ceph-storage
+                  operator: In
+                  values:
+                    - "true"
+  resources:
+    mgr:
+      limits:
+        cpu: "500m"
+        memory: "1024Mi"
+      requests:
+        cpu: "100m"
+        memory: "512Mi"
+    mon:
+      limits:
+        cpu: "500m"
+        memory: "1024Mi"
+      requests:
+        cpu: "100m"
+        memory: "512Mi"
+    osd:
+      limits:
+        cpu: "2000m"
+        memory: "4096Mi"
+      requests:
+        cpu: "500m"
+        memory: "2048Mi"
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+  annotations:
+    mon:
+      example-annotation: "value"
+    osd:
+      example-annotation: "value"
+    mgr:
+      example-annotation: "value"
+  logLevel: INFO
+  crashCollector:
+    disable: false
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+      osd:
+        disabled: false
+      mgr:
+        disabled: false
+  disruptionManagement:
+    managePodBudgets: true
+    osdMaintenanceTimeout: 30
+    manageMachineDisruptionBudgets: false
+    machineDisruptionBudgetNamespace: ""
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroup: 0
+  mgrCount: 2
+  removeOSDsIfOutAndSafeToRemove: false
+  skipUpgradeChecks: false
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  preservePoolsOnDelete: false 
