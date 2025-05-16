@@ -1,0 +1,18 @@
+crds:
+  enabled: true  # Let the chart manage CRDs
+
+namespaceOverride: rook-ceph
+
+logLevel: INFO
+
+monitoring:
+  enabled: true
+
+tolerations: []
+nodeSelector: {}
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 128Mi 
