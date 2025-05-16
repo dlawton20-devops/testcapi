@@ -1,0 +1,60 @@
+cephClusterSpec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+  dashboard:
+    enabled: true
+    ssl: true
+  network:
+    hostNetwork: false
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    # Uncomment and edit to hardcode nodes:
+    # nodes:
+    #   - name: "node1"
+    #     devices:
+    #       - name: "vdb"
+  placement:
+    all:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: ceph-storage
+                  operator: In
+                  values:
+                    - "true"
+  resources:
+    mgr:
+      limits:
+        cpu: "500m"
+        memory: "1024Mi"
+      requests:
+        cpu: "100m"
+        memory: "512Mi"
+    mon:
+      limits:
+        cpu: "500m"
+        memory: "1024Mi"
+      requests:
+        cpu: "100m"
+        memory: "512Mi"
+    osd:
+      limits:
+        cpu: "2000m"
+        memory: "4096Mi"
+      requests:
+        cpu: "500m"
+        memory: "2048Mi"
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+  logLevel: INFO
+  mgrCount: 2
+  removeOSDsIfOutAndSafeToRemove: false
+  skipUpgradeChecks: false
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  preservePoolsOnDelete: false 
