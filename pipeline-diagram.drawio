@@ -92,21 +92,21 @@
         </mxCell>
 
         <!-- Connections -->
-        <mxCell id="" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mr" target="mp">
+        <mxCell id="conn_mr_mp" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mr" target="mp">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="100" y="90" as="sourcePoint" />
             <mxPoint x="150" y="40" as="targetPoint" />
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="" value="Direct Trigger" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="manual" target="tp">
+        <mxCell id="conn_manual_tp" value="Direct Trigger" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="manual" target="tp">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="260" y="90" as="sourcePoint" />
             <mxPoint x="100" y="190" as="targetPoint" />
           </mxGeometry>
         </mxCell>
 
-        <mxCell id="" value="Triggers Tenant Pipeline" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mp" target="tp">
+        <mxCell id="conn_mp_tp" value="Triggers Tenant Pipeline" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mp" target="tp">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="100" y="170" as="sourcePoint" />
             <mxPoint x="100" y="190" as="targetPoint" />
