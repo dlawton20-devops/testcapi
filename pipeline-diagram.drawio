@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2024-03-19T00:00:00.000Z" agent="Mozilla/5.0" version="21.7.5" etag="your-etag" type="device">
+  <diagram id="pipeline" name="Pipeline Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Tenant Repository Box -->
+        <mxCell id="tenant_box" value="Tenant Repository" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1080" height="720" as="geometry" />
+        </mxCell>
+
+        <!-- MR and Manual Triggers -->
+        <mxCell id="mr" value="MR Created" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f9f;strokeColor=#333;strokeWidth=2;" vertex="1" parent="tenant_box">
+          <mxGeometry x="40" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="manual" value="Manual Trigger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f9f;strokeColor=#333;strokeWidth=2;" vertex="1" parent="tenant_box">
+          <mxGeometry x="200" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Modules Pipeline -->
+        <mxCell id="mp" value="Modules Pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbf;strokeColor=#333;strokeWidth=2;" vertex="1" parent="tenant_box">
+          <mxGeometry x="40" y="120" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Tenant Pipeline -->
+        <mxCell id="tp" value="Tenant Pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbf;strokeColor=#333;strokeWidth=2;" vertex="1" parent="tenant_box">
+          <mxGeometry x="40" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Admin Cluster Box -->
+        <mxCell id="admin_box" value="Admin Cluster" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="tenant_box">
+          <mxGeometry x="40" y="280" width="400" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Admin Cluster Modules -->
+        <mxCell id="ac1" value="admin_cluster/openstack" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="admin_box">
+          <mxGeometry x="20" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ac2" value="admin_cluster/helm" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="admin_box">
+          <mxGeometry x="20" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ac3" value="admin_cluster/rancher2" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="admin_box">
+          <mxGeometry x="20" y="160" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Tenant Cluster Box -->
+        <mxCell id="tenant_cluster_box" value="Tenant Cluster" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="tenant_box">
+          <mxGeometry x="40" y="520" width="400" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Tenant Cluster Module -->
+        <mxCell id="tc1" value="tenant_cluster/rancher2" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="tenant_cluster_box">
+          <mxGeometry x="20" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Variable Sources Box -->
+        <mxCell id="var_box" value="Variable Sources" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="tenant_box">
+          <mxGeometry x="600" y="40" width="400" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Vault -->
+        <mxCell id="vault" value="Vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbb;strokeColor=#333;strokeWidth=2;" vertex="1" parent="var_box">
+          <mxGeometry x="20" y="40" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- GitLab Variables -->
+        <mxCell id="gl" value="GitLab Variables" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bfb;strokeColor=#333;strokeWidth=2;" vertex="1" parent="var_box">
+          <mxGeometry x="20" y="100" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Rollback Logic Box -->
+        <mxCell id="rollback_box" value="Rollback Logic" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="tenant_box">
+          <mxGeometry x="600" y="280" width="400" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Rollback Modules -->
+        <mxCell id="rd1" value="Destroy admin_cluster/openstack" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbb;strokeColor=#333;strokeWidth=2;" vertex="1" parent="rollback_box">
+          <mxGeometry x="20" y="40" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rd2" value="Destroy admin_cluster/helm" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbb;strokeColor=#333;strokeWidth=2;" vertex="1" parent="rollback_box">
+          <mxGeometry x="20" y="100" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rd3" value="Destroy admin_cluster/rancher2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fbb;strokeColor=#333;strokeWidth=2;" vertex="1" parent="rollback_box">
+          <mxGeometry x="20" y="160" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Connections -->
+        <mxCell id="" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mr" target="mp">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="100" y="90" as="sourcePoint" />
+            <mxPoint x="150" y="40" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="" value="Direct Trigger" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="manual" target="tp">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="260" y="90" as="sourcePoint" />
+            <mxPoint x="100" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="" value="Triggers Tenant Pipeline" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="tenant_box" source="mp" target="tp">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="100" y="170" as="sourcePoint" />
+            <mxPoint x="100" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Add more connections as needed -->
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile> 
