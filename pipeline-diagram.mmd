@@ -1,0 +1,67 @@
+graph TD
+    subgraph "Tenant Repository"
+        MR[MR Created] --> |Triggers| MP[Modules Pipeline]
+        MP --> |Triggers Tenant Pipeline with Branch Info| TP[Tenant Pipeline]
+        Manual[Manual Trigger] --> |Direct Trigger| TP
+        TP --> |Runs on Specified Branch| TV[Terragrunt Validate]
+        TV --> |If Valid| TP1[Terragrunt Plan]
+        
+        subgraph "Admin Cluster"
+            TP1 --> |1 Plan| AC1[admin_cluster/openstack]
+            AC1 --> |Tests| AC1T[Module Tests]
+            AC1 --> |Lint| AC1L[Module Linting]
+            AC1 --> |Scan| AC1S[Security Scan]
+            AC1T & AC1L & AC1S --> |If All Pass| AC2[admin_cluster/helm]
+            
+            AC2 --> |2 Plan| AC2T[Module Tests]
+            AC2 --> |Lint| AC2L[Module Linting]
+            AC2 --> |Scan| AC2S[Security Scan]
+            AC2T & AC2L & AC2S --> |If All Pass| AC3[admin_cluster/rancher2]
+            
+            AC3 --> |3 Plan| AC3T[Module Tests]
+            AC3 --> |Lint| AC3L[Module Linting]
+            AC3 --> |Scan| AC3S[Security Scan]
+            AC3T & AC3L & AC3S --> |If All Pass| TC1[tenant_cluster/rancher2]
+        end
+        
+        subgraph "Tenant Cluster"
+            TC1 --> |4 Plan| TC1T[Module Tests]
+            TC1 --> |Lint| TC1L[Module Linting]
+            TC1 --> |Scan| TC1S[Security Scan]
+            TC1T & TC1L & TC1S --> |If All Pass| TA[Terragrunt Apply]
+        end
+        
+        TA --> |For each module| TF[Feature Tests]
+
+        subgraph "Rollback Logic"
+            AC1 -.-> |If Apply Fails| RD1[Destroy admin_cluster/openstack]
+            AC2 -.-> |If Apply Fails| RD2[Destroy admin_cluster/helm]
+            AC3 -.-> |If Apply Fails| RD3[Destroy admin_cluster/rancher2]
+            RD1 -.-> |Cleanup| RD2
+            RD2 -.-> |Cleanup| RD3
+        end
+    end
+
+    subgraph "Variable Sources"
+        V[Vault] --> |cth01 Variables| V1[cth01]
+        V --> |cth22 Variables| V2[cth22]
+        V1 & V2 --> |Base Variables| TP
+        
+        GL[GitLab Variables] --> |Runtime Overrides| TP
+        GL --> |cluster_name| TP
+        GL --> |environment| TP
+        GL --> |other_vars| TP
+    end
+
+    style MR fill:#f9f,stroke:#333,stroke-width:2px
+    style Manual fill:#f9f,stroke:#333,stroke-width:2px
+    style MP fill:#bbf,stroke:#333,stroke-width:2px
+    style TP fill:#bbf,stroke:#333,stroke-width:2px
+    style TA fill:#bfb,stroke:#333,stroke-width:2px
+    style V fill:#fbb,stroke:#333,stroke-width:2px
+    style V1 fill:#fbb,stroke:#333,stroke-width:2px
+    style V2 fill:#fbb,stroke:#333,stroke-width:2px
+    style GL fill:#bfb,stroke:#333,stroke-width:2px
+    style RD1 fill:#fbb,stroke:#333,stroke-width:2px
+    style RD2 fill:#fbb,stroke:#333,stroke-width:2px
+    style RD3 fill:#fbb,stroke:#333,stroke-width:2px 
