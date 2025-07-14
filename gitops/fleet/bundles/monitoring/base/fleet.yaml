@@ -1,0 +1,69 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  name: rancher-monitoring
+  namespace: fleet-local
+spec:
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: ${ENVIRONMENT}
+    clusterGroup: ${ENVIRONMENT}-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      prometheus:
+        prometheusSpec:
+          retention: ${PROMETHEUS_RETENTION}
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: ${PROMETHEUS_STORAGE_SIZE}
+                storageClassName: ${STORAGE_CLASS}
+          resources:
+            requests:
+              memory: ${PROMETHEUS_MEMORY_REQUEST}
+              cpu: ${PROMETHEUS_CPU_REQUEST}
+            limits:
+              memory: ${PROMETHEUS_MEMORY_LIMIT}
+              cpu: ${PROMETHEUS_CPU_LIMIT}
+      grafana:
+        persistence:
+          enabled: true
+          size: ${GRAFANA_PERSISTENCE_SIZE}
+          storageClassName: ${STORAGE_CLASS}
+        resources:
+          requests:
+            memory: ${GRAFANA_MEMORY_REQUEST}
+            cpu: ${GRAFANA_CPU_REQUEST}
+          limits:
+            memory: ${GRAFANA_MEMORY_LIMIT}
+            cpu: ${GRAFANA_CPU_LIMIT}
+        adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+      alertmanager:
+        alertmanagerSpec:
+          retention: ${ALERTMANAGER_RETENTION}
+          storage:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: ${ALERTMANAGER_STORAGE_SIZE}
+                storageClassName: ${STORAGE_CLASS}
+          resources:
+            requests:
+              memory: ${ALERTMANAGER_MEMORY_REQUEST}
+              cpu: ${ALERTMANAGER_CPU_REQUEST}
+            limits:
+              memory: ${ALERTMANAGER_MEMORY_LIMIT}
+              cpu: ${ALERTMANAGER_CPU_LIMIT}
+  helm:
+    chart: rancher-monitoring
+    repo: https://releases.rancher.com/server-charts/stable
+    version: 102.0.0+up40.1.2
+    valuesFiles:
+    - values.yaml 

@@ -1,0 +1,27 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: rancher-logging
+  namespace: fleet-local
+spec:
+  branch: main
+  repo: https://github.com/YOUR-ORG/YOUR-GITOPS-REPO
+  paths:
+  - fleet/bundles/logging
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+  - clusterSelector:
+      matchLabels:
+        env: staging
+    clusterGroup: staging-clusters
+  - clusterSelector:
+      matchLabels:
+        env: development
+    clusterGroup: dev-clusters
+  helmSecretName: logging-helm-secret
+  clientSecretName: logging-git-secret
+  refreshInterval: 60s
+  targetsNamespace: logging 

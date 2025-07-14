@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: logging
+  namespace: flux-system
+resources:
+  - namespace.yaml
+  - helmrelease.yaml
+  - networkpolicy.yaml
+  - configmap.yaml
+patches:
+  - target:
+      kind: HelmRelease
+      name: rancher-logging
+    patch: |-
+      - op: replace
+        path: /spec/values/elasticsearch/replicas
+        value: ${ELASTICSEARCH_REPLICAS}
+      - op: replace
+        path: /spec/values/kibana/replicas
+        value: ${KIBANA_REPLICAS}
+      - op: replace
+        path: /spec/values/fluentd/persistence/storageClassName
+        value: ${STORAGE_CLASS}
+      - op: replace
+        path: /spec/values/elasticsearch/volumeClaimTemplate/spec/storageClassName
+        value: ${STORAGE_CLASS}
+      - op: replace
+        path: /spec/values/kibana/persistence/storageClassName
+        value: ${STORAGE_CLASS}
+configMapGenerator:
+  - name: logging-config
+    literals:
+      - elasticsearch-replicas=${ELASTICSEARCH_REPLICAS}
+      - kibana-replicas=${KIBANA_REPLICAS}
+      - storage-class=${STORAGE_CLASS}
+      - environment=${ENVIRONMENT} 

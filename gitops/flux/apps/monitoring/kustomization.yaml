@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+resources:
+  - namespace.yaml
+  - helmrelease.yaml
+  - servicemonitor.yaml
+  - networkpolicy.yaml
+  - configmap.yaml
+patches:
+  - target:
+      kind: HelmRelease
+      name: rancher-monitoring
+    patch: |-
+      - op: replace
+        path: /spec/values/prometheus/prometheusSpec/retention
+        value: ${PROMETHEUS_RETENTION}
+      - op: replace
+        path: /spec/values/grafana/persistence/size
+        value: ${GRAFANA_PERSISTENCE_SIZE}
+      - op: replace
+        path: /spec/values/prometheus/prometheusSpec/storageSpec/volumeClaimTemplate/spec/storageClassName
+        value: ${STORAGE_CLASS}
+      - op: replace
+        path: /spec/values/grafana/persistence/storageClassName
+        value: ${STORAGE_CLASS}
+      - op: replace
+        path: /spec/values/alertmanager/alertmanagerSpec/storage/volumeClaimTemplate/spec/storageClassName
+        value: ${STORAGE_CLASS}
+configMapGenerator:
+  - name: monitoring-config
+    literals:
+      - prometheus-retention=${PROMETHEUS_RETENTION}
+      - grafana-persistence-size=${GRAFANA_PERSISTENCE_SIZE}
+      - storage-class=${STORAGE_CLASS}
+      - environment=${ENVIRONMENT} 

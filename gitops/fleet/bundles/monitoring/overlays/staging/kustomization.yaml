@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: monitoring-staging
+resources:
+  - ../../base
+configMapGenerator:
+  - name: monitoring-config
+    literals:
+      - ENVIRONMENT=staging
+      - PROMETHEUS_RETENTION=7d
+      - PROMETHEUS_STORAGE_SIZE=50Gi
+      - PROMETHEUS_MEMORY_REQUEST=1Gi
+      - PROMETHEUS_MEMORY_LIMIT=2Gi
+      - PROMETHEUS_CPU_REQUEST=250m
+      - PROMETHEUS_CPU_LIMIT=500m
+      - GRAFANA_PERSISTENCE_SIZE=5Gi
+      - GRAFANA_MEMORY_REQUEST=256Mi
+      - GRAFANA_MEMORY_LIMIT=512Mi
+      - GRAFANA_CPU_REQUEST=125m
+      - GRAFANA_CPU_LIMIT=250m
+      - ALERTMANAGER_RETENTION=48h
+      - ALERTMANAGER_STORAGE_SIZE=5Gi
+      - ALERTMANAGER_MEMORY_REQUEST=128Mi
+      - ALERTMANAGER_MEMORY_LIMIT=256Mi
+      - ALERTMANAGER_CPU_REQUEST=50m
+      - ALERTMANAGER_CPU_LIMIT=100m
+      - STORAGE_CLASS=standard
+secretGenerator:
+  - name: monitoring-secrets
+    envs:
+      - ../../../examples/env.staging 

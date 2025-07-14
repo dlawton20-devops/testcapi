@@ -1,0 +1,164 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  name: rancher-logging
+  namespace: fleet-local
+spec:
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      fluentd:
+        persistence:
+          enabled: true
+          size: 50Gi
+          storageClassName: fast-ssd
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        buffer:
+          chunkLimitSize: 2M
+          totalLimitSize: 500M
+          flushInterval: 5s
+      elasticsearch:
+        enabled: true
+        replicas: 3
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 100Gi
+            storageClassName: fast-ssd
+      kibana:
+        enabled: true
+        replicas: 2
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        persistence:
+          enabled: true
+          size: 10Gi
+          storageClassName: fast-ssd
+  - clusterSelector:
+      matchLabels:
+        env: staging
+    clusterGroup: staging-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      fluentd:
+        persistence:
+          enabled: true
+          size: 20Gi
+          storageClassName: standard
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        buffer:
+          chunkLimitSize: 1M
+          totalLimitSize: 200M
+          flushInterval: 10s
+      elasticsearch:
+        enabled: true
+        replicas: 2
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: standard
+      kibana:
+        enabled: true
+        replicas: 1
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 125m
+          limits:
+            memory: 512Mi
+            cpu: 250m
+        persistence:
+          enabled: true
+          size: 5Gi
+          storageClassName: standard
+  - clusterSelector:
+      matchLabels:
+        env: development
+    clusterGroup: dev-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      fluentd:
+        persistence:
+          enabled: false
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 125m
+          limits:
+            memory: 512Mi
+            cpu: 250m
+        buffer:
+          chunkLimitSize: 512k
+          totalLimitSize: 50M
+          flushInterval: 15s
+      elasticsearch:
+        enabled: false
+      kibana:
+        enabled: false
+      # Use external logging for dev
+      externalLogging:
+        enabled: true
+        endpoint: ${EXTERNAL_LOGGING_ENDPOINT}
+        apiKey: ${EXTERNAL_LOGGING_API_KEY}
+  helm:
+    chart: rancher-logging
+    repo: https://releases.rancher.com/server-charts/stable
+    version: 3.9.400
+    valuesFiles:
+    - values.yaml
+    valuesFrom:
+    - secretKeyRef:
+        name: logging-secrets
+        key: external-logging-api-key
+        optional: true
+    - configMapKeyRef:
+        name: logging-config
+        key: fluentd-config
+        optional: true 

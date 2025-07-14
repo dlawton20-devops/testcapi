@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: monitoring-dev
+resources:
+  - ../../base
+configMapGenerator:
+  - name: monitoring-config
+    literals:
+      - ENVIRONMENT=development
+      - PROMETHEUS_RETENTION=1d
+      - PROMETHEUS_STORAGE_SIZE=10Gi
+      - PROMETHEUS_MEMORY_REQUEST=512Mi
+      - PROMETHEUS_MEMORY_LIMIT=1Gi
+      - PROMETHEUS_CPU_REQUEST=125m
+      - PROMETHEUS_CPU_LIMIT=250m
+      - GRAFANA_PERSISTENCE_SIZE=1Gi
+      - GRAFANA_MEMORY_REQUEST=128Mi
+      - GRAFANA_MEMORY_LIMIT=256Mi
+      - GRAFANA_CPU_REQUEST=62m
+      - GRAFANA_CPU_LIMIT=125m
+      - ALERTMANAGER_RETENTION=24h
+      - ALERTMANAGER_STORAGE_SIZE=1Gi
+      - ALERTMANAGER_MEMORY_REQUEST=64Mi
+      - ALERTMANAGER_MEMORY_LIMIT=128Mi
+      - ALERTMANAGER_CPU_REQUEST=25m
+      - ALERTMANAGER_CPU_LIMIT=50m
+      - STORAGE_CLASS=standard
+secretGenerator:
+  - name: monitoring-secrets
+    envs:
+      - ../../../examples/env.dev 

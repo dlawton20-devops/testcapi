@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rancher-monitoring
+  namespace: cattle-monitoring-system
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: rancher
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: monitoring
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - cattle-monitoring-system 

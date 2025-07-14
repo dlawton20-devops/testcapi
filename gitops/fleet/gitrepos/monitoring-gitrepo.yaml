@@ -1,0 +1,30 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: rancher-monitoring
+  namespace: fleet-local
+spec:
+  branch: main
+  repo: https://github.com/YOUR-ORG/YOUR-GITOPS-REPO
+  paths:
+  - fleet/bundles/monitoring
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+  - clusterSelector:
+      matchLabels:
+        env: staging
+    clusterGroup: staging-clusters
+  - clusterSelector:
+      matchLabels:
+        env: development
+    clusterGroup: dev-clusters
+  helmSecretName: monitoring-helm-secret
+  clientSecretName: monitoring-git-secret
+  insecureSkipTLSVerify: false
+  caBundle: ""
+  refreshInterval: 60s
+  revisionHistoryLimit: 10
+  targetsNamespace: monitoring 

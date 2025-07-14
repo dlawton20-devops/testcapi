@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: logging-network-policy
+  namespace: cattle-logging-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: rancher
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: cattle-logging-system
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 5601
+        - protocol: TCP
+          port: 24224
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80 

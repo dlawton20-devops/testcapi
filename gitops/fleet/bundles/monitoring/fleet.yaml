@@ -1,0 +1,190 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  name: rancher-monitoring
+  namespace: fleet-local
+spec:
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      prometheus:
+        prometheusSpec:
+          retention: 30d
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 100Gi
+                storageClassName: fast-ssd
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 500m
+            limits:
+              memory: 4Gi
+              cpu: 1000m
+      grafana:
+        persistence:
+          enabled: true
+          size: 10Gi
+          storageClassName: fast-ssd
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+      alertmanager:
+        alertmanagerSpec:
+          retention: 120h
+          storage:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 10Gi
+                storageClassName: fast-ssd
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 200m
+  - clusterSelector:
+      matchLabels:
+        env: staging
+    clusterGroup: staging-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      prometheus:
+        prometheusSpec:
+          retention: 7d
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 50Gi
+                storageClassName: standard
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 250m
+            limits:
+              memory: 2Gi
+              cpu: 500m
+      grafana:
+        persistence:
+          enabled: true
+          size: 5Gi
+          storageClassName: standard
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 125m
+          limits:
+            memory: 512Mi
+            cpu: 250m
+        adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+      alertmanager:
+        alertmanagerSpec:
+          retention: 48h
+          storage:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 5Gi
+                storageClassName: standard
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 100m
+  - clusterSelector:
+      matchLabels:
+        env: development
+    clusterGroup: dev-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      prometheus:
+        prometheusSpec:
+          retention: 1d
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 10Gi
+                storageClassName: standard
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 125m
+            limits:
+              memory: 1Gi
+              cpu: 250m
+      grafana:
+        persistence:
+          enabled: false
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 62m
+          limits:
+            memory: 256Mi
+            cpu: 125m
+        adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+      alertmanager:
+        alertmanagerSpec:
+          retention: 24h
+          storage:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 1Gi
+                storageClassName: standard
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 25m
+            limits:
+              memory: 128Mi
+              cpu: 50m
+  helm:
+    chart: rancher-monitoring
+    repo: https://releases.rancher.com/server-charts/stable
+    version: 102.0.0+up40.1.2
+    valuesFiles:
+    - values.yaml
+    valuesFrom:
+    - secretKeyRef:
+        name: monitoring-secrets
+        key: grafana-admin-password
+        optional: true
+    - configMapKeyRef:
+        name: monitoring-config
+        key: alertmanager-config
+        optional: true
+  resources:
+  - helmrepository.yaml 

@@ -1,0 +1,151 @@
+# Base values for Rancher Monitoring
+# Variables will be substituted by Kustomize overlays
+
+global:
+  cattle:
+    systemDefaultRegistry: ""
+  rke2Enabled: true
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    evaluationInterval: 30s
+    scrapeInterval: 30s
+    retention: ${PROMETHEUS_RETENTION}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: ${PROMETHEUS_STORAGE_SIZE}
+          storageClassName: ${STORAGE_CLASS}
+    resources:
+      requests:
+        memory: ${PROMETHEUS_MEMORY_REQUEST}
+        cpu: ${PROMETHEUS_CPU_REQUEST}
+      limits:
+        memory: ${PROMETHEUS_MEMORY_LIMIT}
+        cpu: ${PROMETHEUS_CPU_LIMIT}
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      fsGroup: 65534
+
+# Grafana configuration
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    size: ${GRAFANA_PERSISTENCE_SIZE}
+    storageClassName: ${STORAGE_CLASS}
+  resources:
+    requests:
+      memory: ${GRAFANA_MEMORY_REQUEST}
+      cpu: ${GRAFANA_CPU_REQUEST}
+    limits:
+      memory: ${GRAFANA_MEMORY_LIMIT}
+      cpu: ${GRAFANA_CPU_LIMIT}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    fsGroup: 472
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# AlertManager configuration
+alertmanager:
+  alertmanagerSpec:
+    retention: ${ALERTMANAGER_RETENTION}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: ${ALERTMANAGER_STORAGE_SIZE}
+          storageClassName: ${STORAGE_CLASS}
+    resources:
+      requests:
+        memory: ${ALERTMANAGER_MEMORY_REQUEST}
+        cpu: ${ALERTMANAGER_CPU_REQUEST}
+      limits:
+        memory: ${ALERTMANAGER_MEMORY_LIMIT}
+        cpu: ${ALERTMANAGER_CPU_LIMIT}
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      fsGroup: 65534
+
+# Node Exporter
+nodeExporter:
+  enabled: true
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 25m
+    limits:
+      memory: 128Mi
+      cpu: 50m
+
+# Kube State Metrics
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 25m
+    limits:
+      memory: 128Mi
+      cpu: 50m
+
+# Service Monitor for Rancher
+additionalScrapeConfigs:
+  - job_name: 'rancher'
+    static_configs:
+      - targets: ['rancher-webhook.cattle-system.svc:8443']
+    metrics_path: /metrics
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+# Network Policies
+networkPolicy:
+  enabled: true
+  ingressRules:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: cattle-monitoring-system
+      ports:
+      - port: 9090
+        protocol: TCP
+      - port: 9091
+        protocol: TCP
+      - port: 3000
+        protocol: TCP
+      - port: 9093
+        protocol: TCP
+  egressRules:
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+      - port: 80
+        protocol: TCP 

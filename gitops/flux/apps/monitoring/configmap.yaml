@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  namespace: cattle-monitoring-system
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: rancher
+data:
+  prometheus-retention: "7d"
+  grafana-persistence-size: "5Gi"
+  storage-class: "standard"
+  environment: "staging"
+  alertmanager-config: |
+    global:
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'slack-notifications'
+    receivers:
+    - name: 'slack-notifications'
+      slack_configs:
+      - channel: '#alerts'
+        send_resolved: true 

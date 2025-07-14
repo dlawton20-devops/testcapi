@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: prod-cluster
+  namespace: flux-system
+resources:
+  - namespace.yaml
+  - cluster-config.yaml
+  - ../../apps/monitoring/
+  - ../../apps/logging/
+  - ../../apps/secrets/
+configMapGenerator:
+  - name: cluster-config
+    literals:
+      - environment=production
+      - cluster-name=prod-cluster
+      - region=us-west-2
+      - storage-class=fast-ssd
+      - prometheus-retention=30d
+      - grafana-persistence-size=10Gi
+      - elasticsearch-replicas=3
+      - kibana-replicas=2
+secretGenerator:
+  - name: monitoring-secrets
+    envs:
+      - .env.monitoring
+  - name: logging-secrets
+    envs:
+      - .env.logging 
