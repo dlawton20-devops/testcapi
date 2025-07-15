@@ -1,0 +1,172 @@
+# Fleet GitLab Basic Authentication Manifests
+# Apply these manifests to set up basic authentication for Fleet with GitLab
+
+---
+# Namespace for Fleet local resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fleet-local
+  labels:
+    name: fleet-local
+    managed-by: gitops
+
+---
+# GitRepo for Rancher Monitoring
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: rancher-monitoring
+  namespace: fleet-local
+  labels:
+    environment: production
+    managed-by: gitops
+    component: monitoring
+spec:
+  repo: https://gitlab.com/your-org/your-gitops-repo.git
+  branch: main
+  paths:
+  - fleet/bundles/monitoring
+  clientSecretName: fleet-gitlab-basic-auth
+  insecureSkipTLSVerify: false
+  syncGeneration: 1
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      prometheus:
+        prometheusSpec:
+          retention: 30d
+        persistentVolume:
+          enabled: true
+          size: 50Gi
+      grafana:
+        adminPassword: "admin123"
+        persistence:
+          enabled: true
+          size: 10Gi
+
+---
+# GitRepo for Rancher Logging
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: rancher-logging
+  namespace: fleet-local
+  labels:
+    environment: production
+    managed-by: gitops
+    component: logging
+spec:
+  repo: https://gitlab.com/your-org/your-gitops-repo.git
+  branch: main
+  paths:
+  - fleet/bundles/logging
+  clientSecretName: fleet-gitlab-basic-auth
+  insecureSkipTLSVerify: false
+  syncGeneration: 1
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+    values:
+      global:
+        cattle:
+          systemDefaultRegistry: ""
+        rke2Enabled: true
+      fluentd:
+        persistence:
+          enabled: true
+          size: 20Gi
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+      elasticsearch:
+        enabled: true
+        replicas: 3
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 100Gi
+      kibana:
+        enabled: true
+        replicas: 2
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        persistence:
+          enabled: true
+          size: 10Gi
+
+---
+# GitRepo for CRDs
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: rancher-crds
+  namespace: fleet-local
+  labels:
+    environment: production
+    managed-by: gitops
+    component: crds
+spec:
+  repo: https://gitlab.com/your-org/your-gitops-repo.git
+  branch: main
+  paths:
+  - fleet/bundles/crds
+  clientSecretName: fleet-gitlab-basic-auth
+  insecureSkipTLSVerify: false
+  syncGeneration: 1
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters
+
+---
+# GitRepo for Custom Manifests
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: custom-manifests
+  namespace: fleet-local
+  labels:
+    environment: production
+    managed-by: gitops
+    component: custom
+spec:
+  repo: https://gitlab.com/your-org/your-gitops-repo.git
+  branch: main
+  paths:
+  - fleet/bundles/custom-manifests
+  clientSecretName: fleet-gitlab-basic-auth
+  insecureSkipTLSVerify: false
+  syncGeneration: 1
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: production
+    clusterGroup: production-clusters 
