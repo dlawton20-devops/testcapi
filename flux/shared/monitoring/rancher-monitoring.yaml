@@ -33,9 +33,9 @@ spec:
                 requests:
                   storage: 10Gi
         nodeSelector:
-          node-role.caas.nci.bt.com/platform-worker: "true"
+          node-role..com/platform-worker: "true"
         tolerations:
-          - key: node-role.caas.nci.bt.com/platform-worker
+          - key: node-role..com/platform-worker
             operator: Equal
             value: "true"
             effect: NoExecute
@@ -53,9 +53,9 @@ spec:
           memory: 512Mi
           cpu: 500m
       nodeSelector:
-        node-role.caas.nci.bt.com/platform-worker: "true"
+        node-role..com/platform-worker: "true"
       tolerations:
-        - key: node-role.caas.nci.bt.com/platform-worker
+        - key: node-role..com/platform-worker
           operator: Equal
           value: "true"
           effect: NoExecute
@@ -82,9 +82,9 @@ spec:
             memory: 200Mi
             cpu: 200m
         nodeSelector:
-          node-role.caas.nci.bt.com/platform-worker: "true"
+          node-role..com/platform-worker: "true"
         tolerations:
-          - key: node-role.caas.nci.bt.com/platform-worker
+          - key: node-role..com/platform-worker
             operator: Equal
             value: "true"
             effect: NoExecute
@@ -99,18 +99,18 @@ spec:
     nodeExporter:
       enabled: true
       nodeSelector:
-        node-role.caas.nci.bt.com/platform-worker: "true"
+        node-role..com/platform-worker: "true"
       tolerations:
-        - key: node-role.caas.nci.bt.com/platform-worker
+        - key: node-role..com/platform-worker
           operator: Equal
           value: "true"
           effect: NoExecute
     kubeStateMetrics:
       enabled: true
       nodeSelector:
-        node-role.caas.nci.bt.com/platform-worker: "true"
+        node-role..com/platform-worker: "true"
       tolerations:
-        - key: node-role.caas.nci.bt.com/platform-worker
+        - key: node-role..com/platform-worker
           operator: Equal
           value: "true"
           effect: NoExecute 

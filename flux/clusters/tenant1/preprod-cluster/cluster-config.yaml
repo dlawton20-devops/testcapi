@@ -10,9 +10,9 @@ data:
     cpu: 2000m
     memory: 4Gi
   node-selector: |
-    node-role.caas.nci.bt.com/platform-worker: "true"
+    node-role..com/platform-worker: "true"
   tolerations: |
-    - key: node-role.caas.nci.bt.com/platform-worker
+    - key: node-role..com/platform-worker
       operator: Equal
       value: "true"
       effect: NoExecute

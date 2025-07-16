@@ -53,8 +53,8 @@ Downstream Cluster 3 (Prod)
 
 This setup is configured for Rancher-managed clusters with custom platform worker nodes that have:
 
-- **Label**: `node-role.caas.nci.bt.com/platform-worker=true`
-- **Taint**: `node-role.caas.nci.bt.com/platform-worker=NoExecute`
+- **Label**: `node-role..com/platform-worker=true`
+- **Taint**: `node-role..com/platform-worker=NoExecute`
 
 All Flux components, monitoring, logging, and applications are configured to:
 - **Node Selector**: Schedule only on platform worker nodes
@@ -153,7 +153,7 @@ helm upgrade --install flux flux/flux2 \
     --set resources.limits.cpu=1000m \
     --set resources.limits.memory=512Mi \
     --set nodeSelector."node-role\.caas\.nci\.bt\.com/platform-worker"=true \
-    --set tolerations[0].key=node-role.caas.nci.bt.com/platform-worker \
+    --set tolerations[0].key=node-role..com/platform-worker \
     --set tolerations[0].operator=Equal \
     --set tolerations[0].value=true \
     --set tolerations[0].effect=NoExecute \
@@ -984,7 +984,7 @@ If pods are stuck in Pending state, check:
 
 ```bash
 # Check if platform worker nodes exist
-kubectl get nodes -l node-role.caas.nci.bt.com/platform-worker=true
+kubectl get nodes -l node-role..com/platform-worker=true
 
 # Check node taints
 kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints

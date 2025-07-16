@@ -18,9 +18,9 @@ spec:
         tenant: tenant1
     spec:
       nodeSelector:
-        node-role.caas.nci.bt.com/platform-worker: "true"
+        node-role..com/platform-worker: "true"
       tolerations:
-        - key: node-role.caas.nci.bt.com/platform-worker
+        - key: node-role..com/platform-worker
           operator: Equal
           value: "true"
           effect: NoExecute

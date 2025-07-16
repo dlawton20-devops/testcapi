@@ -324,7 +324,7 @@ done
 ### Check Platform Worker Nodes
 ```bash
 # List platform worker nodes
-kubectl get nodes -l node-role.caas.nci.bt.com/platform-worker=true
+kubectl get nodes -l node-role.com/platform-worker=true
 
 # Check node taints
 kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints
