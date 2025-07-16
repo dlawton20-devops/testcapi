@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flux-system
+
+resources:
+  - namespace.yaml
+  - cluster-config.yaml
+  - network-policies.yaml
+  - security-policies.yaml
+
+configMapGenerator:
+  - name: cluster-info
+    literals:
+      - cluster-name=prod-cluster
+      - environment=prod
+      - tenant=tenant1
+      - region=us-west-2
+
+patches:
+  - target:
+      kind: Namespace
+      name: default
+    patch: |-
+      - op: add
+        path: /metadata/labels
+        value:
+          environment: prod
+          tenant: tenant1 

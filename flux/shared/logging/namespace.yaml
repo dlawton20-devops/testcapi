@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-logging-system
+  labels:
+    name: cattle-logging-system
+    app.kubernetes.io/name: logging 

@@ -1,0 +1,96 @@
+stages:
+  - validate
+  - security
+  - deploy
+
+variables:
+  KUBERNETES_VERSION: "1.24"
+
+# Cache dependencies
+cache:
+  paths:
+    - .cache/
+
+# Validate Kustomize configurations
+validate:
+  stage: validate
+  image: alpine/k8s:1.24.0
+  script:
+    - echo "🔍 Validating Kustomize configurations..."
+    - kubectl kustomize clusters/tenant1/dev-cluster/ > /dev/null
+    - kubectl kustomize clusters/tenant1/preprod-cluster/ > /dev/null
+    - kubectl kustomize clusters/tenant1/prod-cluster/ > /dev/null
+    - kubectl kustomize shared/ > /dev/null
+    - kubectl kustomize tenants/tenant1/ > /dev/null
+    - echo "✅ All Kustomize configurations are valid"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "dev"
+    - if: $CI_COMMIT_BRANCH == "preprod"
+    - if: $CI_COMMIT_BRANCH == "prod"
+
+# Security scanning with Trivy
+security-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - echo "🔒 Running security scan..."
+    - trivy config . --severity HIGH,CRITICAL --exit-code 1
+    - echo "✅ Security scan completed"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "preprod"
+    - if: $CI_COMMIT_BRANCH == "prod"
+
+# License compliance check
+license-check:
+  stage: security
+  image: alpine:latest
+  script:
+    - echo "📄 Checking license compliance..."
+    - apk add --no-cache git
+    - |
+      if [ -f "LICENSE" ]; then
+        echo "✅ License file found"
+      else
+        echo "⚠️  No LICENSE file found"
+        exit 1
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == "prod"
+
+# Deploy notification (actual deployment handled by Flux)
+deploy-notification:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "🚀 Deployment will be handled by Flux"
+    - echo "Branch: $CI_COMMIT_BRANCH"
+    - echo "Commit: $CI_COMMIT_SHA"
+    - echo "Environment: $CI_ENVIRONMENT_NAME"
+  environment:
+    name: $CI_COMMIT_BRANCH
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+      environment:
+        name: dev
+    - if: $CI_COMMIT_BRANCH == "preprod"
+      environment:
+        name: preprod
+    - if: $CI_COMMIT_BRANCH == "prod"
+      environment:
+        name: production
+
+# Manual deployment trigger (for emergencies)
+manual-deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "🚨 Manual deployment triggered"
+    - echo "This should only be used for emergency situations"
+    - echo "Normal deployments are handled automatically by Flux"
+  when: manual
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "prod"
+      when: manual 

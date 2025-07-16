@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - logging-crds.yaml
+  - output-crds.yaml
+  - clusterflow-crds.yaml
+  - clusteroutput-crds.yaml
+
+# Logging CRDs should be deployed first, before any other logging resources
+# This ensures the custom resources are available when the logging chart is deployed 

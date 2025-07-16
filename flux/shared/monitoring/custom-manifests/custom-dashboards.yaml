@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-grafana-dashboards
+  namespace: cattle-monitoring-system
+  labels:
+    grafana_dashboard: "1"
+data:
+  custom-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Custom Platform Dashboard",
+        "tags": ["platform", "custom"],
+        "timezone": "browser",
+        "panels": [],
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: custom-dashboard-exporter
+  namespace: cattle-monitoring-system
+  labels:
+    app: custom-dashboard-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: custom-dashboard-exporter
+  template:
+    metadata:
+      labels:
+        app: custom-dashboard-exporter
+    spec:
+      nodeSelector:
+        node-role.caas.nci.bt.com/platform-worker: "true"
+      tolerations:
+        - key: node-role.caas.nci.bt.com/platform-worker
+          operator: Equal
+          value: "true"
+          effect: NoExecute
+      imagePullSecrets:
+        - name: harbor-registry-secret
+      containers:
+      - name: exporter
+        image: harbor.your-domain.com/your-org/custom-dashboard-exporter:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m" 

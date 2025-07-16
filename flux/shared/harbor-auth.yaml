@@ -1,0 +1,31 @@
+# Harbor Authentication for Flux
+# This secret allows Flux to authenticate with Harbor registry
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-auth-secret
+  namespace: flux-system
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <base64-encoded-docker-config>
+---
+# Harbor registry secret for monitoring namespace
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-registry-secret
+  namespace: cattle-monitoring-system
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <base64-encoded-docker-config>
+---
+# Harbor registry secret for logging namespace
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-registry-secret
+  namespace: cattle-logging-system
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <base64-encoded-docker-config> 

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cattle-monitoring-system
+
+resources:
+  - custom-dashboards.yaml
+  - custom-alerts.yaml
+  - custom-rules.yaml
+
+# Custom manifests from internal Harbor registry
+# These will be deployed after the main monitoring components are up 

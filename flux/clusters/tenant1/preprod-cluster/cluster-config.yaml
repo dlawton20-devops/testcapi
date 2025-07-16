@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: flux-system
+data:
+  environment: preprod
+  cluster-type: pre-production
+  resource-limits: |
+    cpu: 2000m
+    memory: 4Gi
+  node-selector: |
+    node-role.caas.nci.bt.com/platform-worker: "true"
+  tolerations: |
+    - key: node-role.caas.nci.bt.com/platform-worker
+      operator: Equal
+      value: "true"
+      effect: NoExecute
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  namespace: flux-system
+data:
+  retention-days: "14"
+  scrape-interval: "15s"
+  storage-size: "20Gi" 

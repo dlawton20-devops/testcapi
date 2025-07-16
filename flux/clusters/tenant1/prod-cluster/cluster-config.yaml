@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: flux-system
+data:
+  environment: prod
+  cluster-type: production
+  resource-limits: |
+    cpu: 4000m
+    memory: 8Gi
+  node-selector: |
+    node-role.caas.nci.bt.com/platform-worker: "true"
+  tolerations: |
+    - key: node-role.caas.nci.bt.com/platform-worker
+      operator: Equal
+      value: "true"
+      effect: NoExecute
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  namespace: flux-system
+data:
+  retention-days: "30"
+  scrape-interval: "10s"
+  storage-size: "50Gi"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-config
+  namespace: flux-system
+data:
+  pod-security-policy: restricted
+  network-policy: enabled
+  audit-logging: enabled 

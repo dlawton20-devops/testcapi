@@ -1,0 +1,61 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: rancher-logging
+  namespace: cattle-logging-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: rancher-logging
+      version: "3.9.400"
+      sourceRef:
+        kind: HelmRepository
+        name: rancher-charts
+        namespace: flux-system
+  values:
+    fluentbit:
+      enabled: true
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
+      nodeSelector:
+        node-role.caas.nci.bt.com/platform-worker: "true"
+      tolerations:
+        - key: node-role.caas.nci.bt.com/platform-worker
+          operator: Equal
+          value: "true"
+          effect: NoExecute
+    fluentd:
+      enabled: true
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 200m
+        limits:
+          memory: 512Mi
+          cpu: 500m
+      nodeSelector:
+        node-role.caas.nci.bt.com/platform-worker: "true"
+      tolerations:
+        - key: node-role.caas.nci.bt.com/platform-worker
+          operator: Equal
+          value: "true"
+          effect: NoExecute
+      persistence:
+        enabled: true
+        storageClassName: default
+        size: 10Gi
+    logAggregator:
+      enabled: false  # Set to true if you want to use external log aggregation
+    additionalLoggingSources:
+      systemd:
+        enabled: true
+      containerLogs:
+        enabled: true
+      auditLogs:
+        enabled: true 

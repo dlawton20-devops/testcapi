@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-monitoring-system
+  labels:
+    name: cattle-monitoring-system
+    app.kubernetes.io/name: monitoring 

@@ -1,0 +1,30 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: rancher-charts
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://releases.rancher.com/server-charts/stable
+  type: oci
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: prometheus-community
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://prometheus-community.github.io/helm-charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: harbor-charts
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://harbor.your-domain.com/chartrepo/your-org
+  type: oci
+  secretRef:
+    name: harbor-auth-secret 

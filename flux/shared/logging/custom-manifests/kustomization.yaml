@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cattle-logging-system
+
+resources:
+  - custom-logging-config.yaml
+  - custom-log-processors.yaml
+  - custom-log-outputs.yaml
+
+# Custom logging manifests from internal Harbor registry
+# These will be deployed after the main logging components are up 

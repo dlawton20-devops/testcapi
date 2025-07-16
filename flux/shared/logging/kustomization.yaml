@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cattle-logging-system
+
+resources:
+  - namespace.yaml
+  - crds/
+  - rancher-logging.yaml
+  - custom-manifests/
+  - logging-config.yaml
+  - fluentbit-config.yaml
+
+configMapGenerator:
+  - name: fluentbit-config
+    files:
+      - config/fluentbit.conf
+      - config/parsers.conf
+
+secretGenerator:
+  - name: elasticsearch-credentials
+    literals:
+      - username=elastic
+      - password=changeme
+  - name: harbor-registry-secret
+    literals:
+      - username=your-harbor-username
+      - password=your-harbor-password
+
+patches:
+  - target:
+      kind: Deployment
+      name: rancher-logging-fluentbit
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "200m" 

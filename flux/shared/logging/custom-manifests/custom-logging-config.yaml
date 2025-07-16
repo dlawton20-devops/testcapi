@@ -1,0 +1,75 @@
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Logging
+metadata:
+  name: custom-logging
+  namespace: cattle-logging-system
+spec:
+  fluentd:
+    image:
+      repository: harbor.your-domain.com/your-org/custom-fluentd
+      tag: latest
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 200m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+    nodeSelector:
+      node-role.caas.nci.bt.com/platform-worker: "true"
+    tolerations:
+      - key: node-role.caas.nci.bt.com/platform-worker
+        operator: Equal
+        value: "true"
+        effect: NoExecute
+  fluentbit:
+    image:
+      repository: harbor.your-domain.com/your-org/custom-fluentbit
+      tag: latest
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 100m
+      limits:
+        memory: 256Mi
+        cpu: 200m
+    nodeSelector:
+      node-role.caas.nci.bt.com/platform-worker: "true"
+    tolerations:
+      - key: node-role.caas.nci.bt.com/platform-worker
+        operator: Equal
+        value: "true"
+        effect: NoExecute
+---
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Flow
+metadata:
+  name: custom-application-logs
+  namespace: cattle-logging-system
+spec:
+  filters:
+    - tag_normaliser: {}
+    - parser:
+        key_name: log
+        parsers:
+          - json: {}
+  outputRefs:
+    - custom-output
+---
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: Output
+metadata:
+  name: custom-output
+  namespace: cattle-logging-system
+spec:
+  elasticsearch:
+    host: elasticsearch-master.cattle-logging-system.svc.cluster.local
+    port: 9200
+    scheme: https
+    ssl_verify: false
+    user: elastic
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: elasticsearch-credentials
+          key: password 
