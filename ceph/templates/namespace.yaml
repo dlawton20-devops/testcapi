@@ -1,0 +1,9 @@
+{{- if .Values.operator.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    name: {{ include "rook-ceph.namespace" . }}
+{{- end }} 

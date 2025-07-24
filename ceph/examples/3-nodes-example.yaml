@@ -1,0 +1,81 @@
+# Example configuration for 3 nodes with specific devices
+# Replace the node names and device names with your actual values
+
+cluster:
+  spec:
+    storage:
+      # Set to false when specifying individual nodes
+      useAllNodes: false
+      # Set to false when specifying individual devices
+      useAllDevices: false
+      
+      # Global configuration for all OSDs
+      config:
+        # You can customize these settings based on your hardware
+        # osdsPerDevice: "1"  # Number of OSDs per device
+        # databaseSizeMB: "1024"  # For disks smaller than 100 GB
+        # encryptedDevice: "false"  # Enable encryption if needed
+        # deviceClass: "ssd"  # Device class for OSDs
+      
+      # Whether to allow changing the device class of an OSD after it is created
+      allowDeviceClassUpdate: false
+      # Whether to allow resizing the OSD crush weight after osd pvc is increased
+      allowOsdCrushWeightUpdate: false
+      
+      # Individual nodes configuration
+      # Replace the node names with your actual Kubernetes node hostnames
+      # You can get the node names using: kubectl get nodes
+      nodes:
+        - name: "node1.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+            # You can specify multiple OSDs per device for high-performance storage
+            # - name: "nvme0n1"
+            #   config:
+            #     osdsPerDevice: "5"
+          # Node-level configuration (optional)
+          # config:
+          #   osdsPerDevice: "2"
+        
+        - name: "node2.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+          # You can use device filters instead of specific devices
+          # deviceFilter: "^sd."
+        
+        - name: "node3.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+
+# Optional: Customize other settings
+operator:
+  settings:
+    # Enable device discovery daemon
+    ROOK_ENABLE_DISCOVERY_DAEMON: "true"
+    # Enable CSI drivers
+    ROOK_CSI_ENABLE_CEPHFS: "true"
+
+# Optional: Customize storage classes
+storageClasses:
+  cephfs:
+    enabled: true
+    name: rook-cephfs
+    isDefault: true  # Make this the default storage class for RWX
+    pool: myfs-replicated
+
+# Optional: Enable monitoring
+cluster:
+  spec:
+    monitoring:
+      enabled: true
+      rulesNamespace: rook-ceph
+
+# Optional: Enable dashboard
+cluster:
+  spec:
+    dashboard:
+      enabled: true
+      ssl: false 

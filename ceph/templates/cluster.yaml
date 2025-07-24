@@ -1,0 +1,97 @@
+{{- if .Values.cluster.enabled }}
+# Ceph Cluster
+# This must be deployed FOURTH (after operator is running)
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: {{ include "rook-ceph.fullname" . }}-cluster
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.cluster.spec.cephVersion }}
+  cephVersion:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  dataDirHostPath: {{ .Values.cluster.spec.dataDirHostPath | default "/var/lib/rook" }}
+  
+  {{- with .Values.cluster.spec.network }}
+  network:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.cluster.spec.healthCheck }}
+  healthCheck:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.cluster.spec.dashboard }}
+  dashboard:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.cluster.spec.monitoring }}
+  monitoring:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.cluster.spec.crashCollector }}
+  crashCollector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  # Storage configuration - customizable section
+  storage:
+    {{- if .Values.cluster.spec.storage.useAllNodes }}
+    useAllNodes: {{ .Values.cluster.spec.storage.useAllNodes }}
+    {{- end }}
+    
+    {{- if .Values.cluster.spec.storage.useAllDevices }}
+    useAllDevices: {{ .Values.cluster.spec.storage.useAllDevices }}
+    {{- end }}
+    
+    {{- if .Values.cluster.spec.storage.deviceFilter }}
+    deviceFilter: {{ .Values.cluster.spec.storage.deviceFilter | quote }}
+    {{- end }}
+    
+    {{- with .Values.cluster.spec.storage.config }}
+    config:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.cluster.spec.storage.allowDeviceClassUpdate }}
+    allowDeviceClassUpdate: {{ .Values.cluster.spec.storage.allowDeviceClassUpdate }}
+    {{- end }}
+    
+    {{- if .Values.cluster.spec.storage.allowOsdCrushWeightUpdate }}
+    allowOsdCrushWeightUpdate: {{ .Values.cluster.spec.storage.allowOsdCrushWeightUpdate }}
+    {{- end }}
+    
+    {{- if .Values.cluster.spec.storage.nodes }}
+    nodes:
+      {{- range .Values.cluster.spec.storage.nodes }}
+      - name: {{ .name | quote }}
+        {{- if .devices }}
+        devices:
+          {{- range .devices }}
+          - name: {{ .name | quote }}
+            {{- if .config }}
+            config:
+              {{- toYaml .config | nindent 14 }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if .deviceFilter }}
+        deviceFilter: {{ .deviceFilter | quote }}
+        {{- end }}
+        {{- if .config }}
+        config:
+          {{- toYaml .config | nindent 10 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }} 

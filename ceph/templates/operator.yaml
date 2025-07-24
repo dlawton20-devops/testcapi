@@ -1,0 +1,62 @@
+{{- if .Values.operator.enabled }}
+# Rook Ceph Operator
+# This must be deployed THIRD (after CRDs and common resources)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-operator
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-3"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    operator: rook
+    storage-backend: ceph
+spec:
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+        {{- include "rook-ceph.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: rook-ceph-system
+      containers:
+      - name: rook-ceph-operator
+        image: rook/ceph:v1.12.0
+        args: ["ceph", "operator"]
+        env:
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
+        - name: ROOK_LOG_LEVEL
+          value: "INFO"
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: {{ .Values.operator.settings.ROOK_ENABLE_DISCOVERY_DAEMON | quote }}
+        - name: ROOK_CSI_ENABLE_CEPHFS
+          value: {{ .Values.operator.settings.ROOK_CSI_ENABLE_CEPHFS | quote }}
+        - name: ROOK_ENABLE_TELEMETRY
+          value: {{ .Values.operator.settings.ROOK_ENABLE_TELEMETRY | quote }}
+        {{- with .Values.global.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        {{- with .Values.global.imagePullSecrets }}
+        imagePullSecrets:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }} 

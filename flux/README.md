@@ -53,7 +53,7 @@ Downstream Cluster 3 (Prod)
 
 This setup is configured for Rancher-managed clusters with custom platform worker nodes that have:
 
-- **Label**: `node-role..com/platform-worker=true`
+- **Label**: `node-role.com/platform-worker=true`
 - **Taint**: `node-role..com/platform-worker=NoExecute`
 
 All Flux components, monitoring, logging, and applications are configured to:

@@ -1,0 +1,102 @@
+{{- if .Values.toolbox.enabled }}
+# Rook Ceph Toolbox
+# This must be deployed after the cluster is ready
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-toolbox
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "20"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    app: rook-ceph-toolbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-toolbox
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-toolbox
+        {{- include "rook-ceph.selectorLabels" . | nindent 8 }}
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: rook-ceph-toolbox
+        image: {{ .Values.toolbox.image }}
+        command:
+          - /tini
+        args:
+          - "-g"
+          - "--"
+          - /usr/local/bin/toolbox.sh
+        env:
+          - name: ROOK_ADMIN_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: rook-ceph-mon
+                key: admin-secret
+                optional: false
+          - name: ROOK_MON_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: rook-ceph-mon
+                key: fsid
+                optional: false
+          - name: ROOK_CONFIG_DIR
+            value: "/etc/ceph"
+          - name: ROOK_KEYRING_DIR
+            value: "/etc/ceph"
+        volumeMounts:
+          - name: mon-endpoint-volume
+            mountPath: /etc/rook
+        {{- with .Values.global.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        {{- with .Values.global.imagePullSecrets }}
+        imagePullSecrets:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+            - key: data
+              path: mon-endpoints
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-toolbox
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "20"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    app: rook-ceph-toolbox
+spec:
+  selector:
+    app: rook-ceph-toolbox
+  ports:
+  - name: toolbox
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+{{- end }} 

@@ -1,0 +1,152 @@
+{{- if .Values.operator.enabled }}
+# Rook Ceph Custom Resource Definitions
+# These CRDs define the custom resources used by Rook
+# This must be deployed FIRST
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclusters.ceph.rook.io
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephCluster
+    listKind: CephClusterList
+    plural: cephclusters
+    singular: cephcluster
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              cephVersion:
+                type: object
+              dataDirHostPath:
+                type: string
+              network:
+                type: object
+              healthCheck:
+                type: object
+              dashboard:
+                type: object
+              monitoring:
+                type: object
+              crashCollector:
+                type: object
+              storage:
+                type: object
+                properties:
+                  useAllNodes:
+                    type: boolean
+                  useAllDevices:
+                    type: boolean
+                  deviceFilter:
+                    type: string
+                  config:
+                    type: object
+                  allowDeviceClassUpdate:
+                    type: boolean
+                  allowOsdCrushWeightUpdate:
+                    type: boolean
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        devices:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              config:
+                                type: object
+                        deviceFilter:
+                          type: string
+                        config:
+                          type: object
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: DataDirHostPath
+      type: string
+      jsonPath: .spec.dataDirHostPath
+    - name: Health
+      type: string
+      jsonPath: .status.ceph.health
+    - name: Status
+      type: string
+      jsonPath: .status.phase
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cephfilesystems.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephFilesystem
+    listKind: CephFilesystemList
+    plural: cephfilesystems
+    singular: cephfilesystem
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              metadataPool:
+                type: object
+                properties:
+                  replicated:
+                    type: object
+                    properties:
+                      size:
+                        type: integer
+              dataPools:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    replicated:
+                      type: object
+                      properties:
+                        size:
+                          type: integer
+              activeCount:
+                type: integer
+              standbyCount:
+                type: integer
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: ActiveMDS
+      type: integer
+      jsonPath: .status.info.activeMDS
+    - name: Status
+      type: string
+      jsonPath: .status.phase
+
+{{- end }} 

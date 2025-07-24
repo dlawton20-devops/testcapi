@@ -1,0 +1,27 @@
+{{- if .Values.filesystem.enabled }}
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: {{ .Values.filesystem.name }}
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+spec:
+  metadataPool:
+    {{- with .Values.filesystem.metadataPool }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  dataPools:
+    {{- range .Values.filesystem.dataPools }}
+    - name: {{ .name }}
+      {{- with .replicated }}
+      replicated:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  activeCount: {{ .Values.filesystem.activeCount }}
+  standbyCount: {{ .Values.filesystem.standbyCount }}
+{{- end }} 

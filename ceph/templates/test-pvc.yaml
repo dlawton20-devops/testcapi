@@ -1,0 +1,62 @@
+{{- if .Values.testPvc.enabled }}
+# Test PVC and Pod for CephFS verification
+# This must be deployed after the storage class is ready
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-cephfs-pvc
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "25"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    app: test-cephfs
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.storageClasses.cephfs.name }}
+  resources:
+    requests:
+      storage: {{ .Values.testPvc.size }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-cephfs-pod
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "30"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+    app: test-cephfs
+spec:
+  containers:
+  - name: test-container
+    image: {{ .Values.testPvc.image }}
+    command: ["/bin/sh"]
+    args: ["-c", "echo 'CephFS test successful!' > /mnt/cephfs/test.txt && cat /mnt/cephfs/test.txt && sleep 3600"]
+    volumeMounts:
+    - name: cephfs-volume
+      mountPath: /mnt/cephfs
+    {{- with .Values.global.imagePullPolicy }}
+    imagePullPolicy: {{ . }}
+    {{- end }}
+  volumes:
+  - name: cephfs-volume
+    persistentVolumeClaim:
+      claimName: test-cephfs-pvc
+  {{- with .Values.global.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.global.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.global.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }} 

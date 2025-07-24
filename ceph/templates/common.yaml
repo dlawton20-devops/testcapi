@@ -1,0 +1,345 @@
+{{- if .Values.operator.enabled }}
+# Common resources for Rook Ceph
+# This includes RBAC, service accounts, and other common resources
+# This must be deployed SECOND (after CRDs)
+
+---
+# ServiceAccount for the Rook operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-system
+  namespace: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-4"
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+---
+# ClusterRole for the Rook operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-system
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  - nodes
+  - nodes/proxy
+  - events
+  - persistentvolumes
+  - persistentvolumeclaims
+  - endpoints
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - rook-ceph-system
+  verbs:
+  - use
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  - roles
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+
+---
+# ClusterRoleBinding for the Rook operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-system
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: {{ include "rook-ceph.namespace" . }}
+
+---
+# ServiceAccount for Ceph daemons
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mgr
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+---
+# ServiceAccount for Ceph OSDs
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-osd
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+---
+# ServiceAccount for Ceph monitors
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mon
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+---
+# ServiceAccount for Ceph MDS
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-mds
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+
+
+---
+# ServiceAccount for Ceph crash collector
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-crashcollector
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+
+---
+# Role for Ceph daemons
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rook-ceph-mgr
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+
+---
+# RoleBinding for Ceph daemons
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-mgr
+  namespace: {{ include "rook-ceph.namespace" . }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-mgr
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-mgr
+  namespace: {{ include "rook-ceph.namespace" . }}
+- kind: ServiceAccount
+  name: rook-ceph-osd
+  namespace: {{ include "rook-ceph.namespace" . }}
+- kind: ServiceAccount
+  name: rook-ceph-mon
+  namespace: {{ include "rook-ceph.namespace" . }}
+- kind: ServiceAccount
+  name: rook-ceph-mds
+  namespace: {{ include "rook-ceph.namespace" . }}
+
+- kind: ServiceAccount
+  name: rook-ceph-crashcollector
+  namespace: {{ include "rook-ceph.namespace" . }}
+
+---
+# PodSecurityPolicy for Rook Ceph
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: rook-ceph-system
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+spec:
+  allowPrivilegeEscalation: true
+  allowedCapabilities:
+  - SYS_ADMIN
+  - MKNOD
+  fsGroup:
+    rule: RunAsAny
+  hostIPC: true
+  hostNetwork: false
+  hostPID: true
+  privileged: true
+  readOnlyRootFilesystem: false
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - All
+{{- end }} 

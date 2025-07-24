@@ -1,0 +1,30 @@
+{{- if .Values.storageClasses.cephfs.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storageClasses.cephfs.name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "15"
+    {{- if .Values.storageClasses.cephfs.isDefault }}
+    storageclass.kubernetes.io/is-default-class: "true"
+    {{- end }}
+  labels:
+    {{- include "rook-ceph.labels" . | nindent 4 }}
+provisioner: rook-ceph.cephfs.csi.ceph.com
+parameters:
+  clusterID: {{ include "rook-ceph.namespace" . }}
+  fsName: {{ .Values.filesystem.name }}
+  pool: {{ .Values.storageClasses.cephfs.pool }}
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ include "rook-ceph.namespace" . }}
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: {{ include "rook-ceph.namespace" . }}
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: {{ include "rook-ceph.namespace" . }}
+  csi.storage.k8s.io/node-expand-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-expand-secret-namespace: {{ include "rook-ceph.namespace" . }}
+reclaimPolicy: {{ .Values.storageClasses.cephfs.reclaimPolicy }}
+allowVolumeExpansion: {{ .Values.storageClasses.cephfs.allowVolumeExpansion }}
+volumeBindingMode: {{ .Values.storageClasses.cephfs.volumeBindingMode }}
+{{- end }} 
