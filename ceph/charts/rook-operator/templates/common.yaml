@@ -1,4 +1,4 @@
-{{- if .Values.operator.enabled }}
+{{- if .Values.enabled }}
 # Common resources for Rook Ceph
 # This includes RBAC, service accounts, and other common resources
 # This must be deployed SECOND (after CRDs)
@@ -94,10 +94,12 @@ rules:
   - "*"
   verbs:
   - "*"
-- apiGroups:
-  - policy
-  resources:
-  - podsecuritypolicies
+# PodSecurityPolicies are deprecated in Kubernetes 1.21+ and removed in 1.25+
+# Removing this section to avoid API compatibility issues
+# - apiGroups:
+#   - policy
+#   resources:
+#   - podsecuritypolicies
   resourceNames:
   - rook-ceph-system
   verbs:
@@ -314,32 +316,7 @@ subjects:
   name: rook-ceph-crashcollector
   namespace: {{ include "rook-ceph.namespace" . }}
 
----
-# PodSecurityPolicy for Rook Ceph
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: rook-ceph-system
-  labels:
-    {{- include "rook-ceph.labels" . | nindent 4 }}
-spec:
-  allowPrivilegeEscalation: true
-  allowedCapabilities:
-  - SYS_ADMIN
-  - MKNOD
-  fsGroup:
-    rule: RunAsAny
-  hostIPC: true
-  hostNetwork: false
-  hostPID: true
-  privileged: true
-  readOnlyRootFilesystem: false
-  runAsUser:
-    rule: RunAsAny
-  seLinux:
-    rule: RunAsAny
-  supplementalGroups:
-    rule: RunAsAny
-  volumes:
-  - All
+# PodSecurityPolicies are deprecated in Kubernetes 1.21+ and removed in 1.25+
+# Removing PodSecurityPolicy to avoid API compatibility issues
+# Modern Kubernetes clusters use Pod Security Standards instead
 {{- end }} 

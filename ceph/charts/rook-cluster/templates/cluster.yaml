@@ -1,4 +1,4 @@
-{{- if .Values.cluster.enabled }}
+{{- if .Values.enabled }}
 # Ceph Cluster
 # This must be deployed FOURTH (after operator is running)
 apiVersion: ceph.rook.io/v1
@@ -8,7 +8,7 @@ metadata:
   namespace: {{ include "rook-ceph.namespace" . }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-weight": "1"
   labels:
     {{- include "rook-ceph.labels" . | nindent 4 }}
 spec:

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: rook-cluster
+description: Rook Ceph Cluster Configuration
+type: application
+version: 0.1.0
+appVersion: "1.12.0"
+keywords:
+  - cluster
+  - rook
+  - ceph
+  - kubernetes
+  - storage
+home: https://rook.io
+sources:
+  - https://github.com/rook/rook
+maintainers:
+  - name: Rook Maintainers
+    email: rook-maintainers@googlegroups.com 

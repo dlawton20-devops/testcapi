@@ -1,0 +1,17 @@
+apiVersion: v2
+name: rook-operator
+description: Rook Ceph Operator
+type: application
+version: 0.1.0
+appVersion: "1.12.0"
+keywords:
+  - operator
+  - rook
+  - ceph
+  - kubernetes
+home: https://rook.io
+sources:
+  - https://github.com/rook/rook
+maintainers:
+  - name: Rook Maintainers
+    email: rook-maintainers@googlegroups.com 

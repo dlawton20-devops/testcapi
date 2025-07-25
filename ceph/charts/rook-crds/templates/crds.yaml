@@ -1,4 +1,4 @@
-{{- if .Values.operator.enabled }}
+{{- if .Values.enabled }}
 # Rook Ceph Custom Resource Definitions
 # These CRDs define the custom resources used by Rook
 # This must be deployed FIRST

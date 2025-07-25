@@ -1,48 +1,35 @@
-# Default values for rook-ceph
-# This is a YAML-formatted file.
+# Rook Cluster Values
 
-# Sub-chart control - enables/disables each component
-crds:
-  enabled: true
+# Enable cluster deployment
+enabled: true
 
-operator:
-  enabled: true
+# Namespace for cluster
+namespace: rook-ceph
 
+# Cluster configuration
 cluster:
   enabled: true
-
-# Rook Operator Configuration
-operator:
-  enabled: true
-  namespace: rook-ceph
-  # Operator settings
-  settings:
-    # Enable device discovery daemon
-    ROOK_ENABLE_DISCOVERY_DAEMON: "true"
-    # Enable CephFS CSI driver
-    ROOK_CSI_ENABLE_CEPHFS: "true"
-    # Enable telemetry
-    ROOK_ENABLE_TELEMETRY: "true"
-
-# Ceph Cluster Configuration
-cluster:
-  enabled: true
-  namespace: rook-ceph
-  
-  # Ceph cluster specification
   spec:
-    # Ceph version to use
+    # Ceph version
     cephVersion:
       image: quay.io/ceph/ceph:v18.2.0
     
-    # Data directory for Ceph daemons
+    # Data directory host path
     dataDirHostPath: /var/lib/rook
+    
+    # Monitor configuration
+    mon:
+      count: 3
+      allowMultiplePerNode: false
+    
+    # Dashboard configuration
+    dashboard:
+      enabled: true
+      ssl: true
     
     # Network configuration
     network:
-      # Enable host networking
       hostNetwork: false
-      # Provider can be 'host' or 'multus'
       provider: host
     
     # Health check configuration
@@ -58,11 +45,6 @@ cluster:
           interval: 60s
           timeout: 25s
     
-    # Dashboard configuration
-    dashboard:
-      enabled: true
-      ssl: false
-    
     # Prometheus monitoring
     monitoring:
       enabled: true
@@ -74,56 +56,49 @@ cluster:
     
     # Placement configuration for Ceph daemons
     placement:
-      # Monitor placement
-      mon:
-        # Node selector for monitors
-        nodeSelector: {}
-        # Tolerations for monitors
-        tolerations: []
-        # Affinity for monitors
-        affinity: {}
-        # Pod anti-affinity for monitors
-        podAntiAffinity: {}
-      
-      # Manager placement
-      mgr:
-        # Node selector for managers
-        nodeSelector: {}
-        # Tolerations for managers
-        tolerations: []
-        # Affinity for managers
-        affinity: {}
-        # Pod anti-affinity for managers
-        podAntiAffinity: {}
-      
-      # OSD placement
-      osd:
-        # Node selector for OSDs
-        nodeSelector: {}
-        # Tolerations for OSDs
-        tolerations: []
-        # Affinity for OSDs
-        affinity: {}
-        # Pod anti-affinity for OSDs
-        podAntiAffinity: {}
-      
       # All daemons (mon, mgr, osd) - overrides individual settings
       all:
         # Node selector for all daemons
-        nodeSelector: {}
+        nodeSelector:
+          ceph-storage: "true"
         # Tolerations for all daemons
-        tolerations: []
+        tolerations:
+        - key: "node-role.caas.com/platform-worker"
+          operator: "Exists"
+          effect: "NoExecute"
         # Affinity for all daemons
-        affinity: {}
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: ceph-storage
+                  operator: In
+                  values:
+                  - "true"
+                - key: node-role.caas.com/platform-worker
+                  operator: Exists
         # Pod anti-affinity for all daemons
-        podAntiAffinity: {}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-mon
+                  - rook-ceph-mgr
+                  - rook-ceph-osd
+              topologyKey: kubernetes.io/hostname
     
     # Storage configuration - customizable section
     storage:
       # Use all nodes in the cluster
       useAllNodes: true
       # Use all devices on each node
-      useAllDevices: true
+      useAllDevices: false
       # Device filter (regex pattern)
       # deviceFilter: "^sd."
       
@@ -148,7 +123,7 @@ cluster:
         # Example node configurations - customize these for your environment
         # - name: "node1.example.com"
         #   devices: # specific devices to use for storage can be specified for each node
-        #     - name: "sdb"
+        #     - name: "vdb"
         #     - name: "nvme01" # multiple osds can be created on high performance devices
         #       config:
         #         osdsPerDevice: "5"
@@ -156,8 +131,6 @@ cluster:
         #   config: # configuration can be specified at the node level which overrides the cluster level config
         # - name: "node2.example.com"
         #   deviceFilter: "^sd."
-
-
 
 # Filesystem configuration (for CephFS RWX storage)
 filesystem:
@@ -217,17 +190,15 @@ global:
   # Node selector - Simple way to target specific nodes
   # Example:
   # nodeSelector:
-  #   node-role.kubernetes.io/storage: "true"
-  #   storage-type: "ceph"
+  #   ceph-storage: "true"
   nodeSelector: {}
   
   # Tolerations - Allow pods to be scheduled on nodes with specific taints
   # Example:
   # tolerations:
-  # - key: "node-role.kubernetes.io/storage"
-  #   operator: "Equal"
-  #   value: "true"
-  #   effect: "NoSchedule"
+  # - key: "node-role.caas.com/platform-worker"
+  #   operator: "Exists"
+  #   effect: "NoExecute"
   tolerations: []
   
   # Affinity - More complex scheduling rules
@@ -237,13 +208,14 @@ global:
   #     requiredDuringSchedulingIgnoredDuringExecution:
   #       nodeSelectorTerms:
   #       - matchExpressions:
-  #         - key: node-role.kubernetes.io/storage
+  #         - key: ceph-storage
   #           operator: In
   #           values:
-  #           - "true"
+  #         - "true"
   affinity: {}
   
-  # Annotations
+  # Additional annotations (optional)
   annotations: {}
-  # Labels
+  
+  # Additional labels (optional)
   labels: {} 

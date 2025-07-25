@@ -1,0 +1,17 @@
+apiVersion: v2
+name: rook-crds
+description: Custom Resource Definitions for Rook Ceph
+type: application
+version: 0.1.0
+appVersion: "1.12.0"
+keywords:
+  - crds
+  - rook
+  - ceph
+  - kubernetes
+home: https://rook.io
+sources:
+  - https://github.com/rook/rook
+maintainers:
+  - name: Rook Maintainers
+    email: rook-maintainers@googlegroups.com 

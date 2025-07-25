@@ -1,0 +1,23 @@
+# Rook CRDs Values
+# This chart only contains Custom Resource Definitions
+
+# Enable CRDs deployment
+enabled: true
+
+# Namespace for CRDs (global)
+namespace: rook-ceph
+
+# Global settings
+global:
+  # Image registry (leave empty for default)
+  imageRegistry: ""
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  # Image pull secrets (if using private registry)
+  imagePullSecrets: []
+  
+  # Additional annotations (optional)
+  annotations: {}
+  
+  # Additional labels (optional)
+  labels: {} 

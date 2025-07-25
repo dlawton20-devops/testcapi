@@ -106,6 +106,11 @@ verify_deployment() {
     # Wait for CRDs to be created
     print_status "Waiting for CRDs to be created..."
     kubectl wait --for=condition=established --timeout=60s crd/cephclusters.ceph.rook.io
+    kubectl wait --for=condition=established --timeout=60s crd/cephfilesystems.ceph.rook.io
+    
+    # Additional wait to ensure CRDs are fully available
+    print_status "Ensuring CRDs are fully available..."
+    sleep 10
     
     # Wait for operator to be ready
     print_status "Waiting for Rook operator to be ready..."

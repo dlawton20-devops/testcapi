@@ -1,6 +1,6 @@
 apiVersion: v2
 name: rook-ceph
-description: A Helm chart for Rook Ceph storage orchestrator
+description: A Helm chart for Rook Ceph storage orchestrator with sub-charts for proper deployment order
 type: application
 version: 0.1.0
 appVersion: "1.12.0"
@@ -15,4 +15,16 @@ sources:
 maintainers:
   - name: Rook Maintainers
     email: rook-maintainers@googlegroups.com
+
+# Dependencies for proper deployment order
+dependencies:
+  - name: rook-crds
+    version: 0.1.0
+    condition: crds.enabled
+  - name: rook-operator
+    version: 0.1.0
+    condition: operator.enabled
+  - name: rook-cluster
+    version: 0.1.0
+    condition: cluster.enabled
  

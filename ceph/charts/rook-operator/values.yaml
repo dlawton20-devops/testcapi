@@ -1,0 +1,66 @@
+# Rook Operator Values
+
+# Enable operator deployment
+enabled: true
+
+# Namespace for operator
+namespace: rook-ceph
+
+# Operator configuration
+operator:
+  # Operator image
+  image: quay.io/rook/ceph:v1.12.0
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  # Replicas
+  replicas: 1
+  # Resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Global settings
+global:
+  # Image registry (leave empty for default)
+  imageRegistry: ""
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  # Image pull secrets (if using private registry)
+  imagePullSecrets: []
+  
+  # Node selector - Simple way to target specific nodes
+  # Example:
+  # nodeSelector:
+  #   ceph-storage: "true"
+  nodeSelector: {}
+  
+  # Tolerations - Allow pods to be scheduled on nodes with specific taints
+  # Example:
+  # tolerations:
+  # - key: "node-role.caas.com/platform-worker"
+  #   operator: "Exists"
+  #   effect: "NoExecute"
+  tolerations: []
+  
+  # Affinity - More complex scheduling rules
+  # Example:
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: ceph-storage
+  #           operator: In
+  #           values:
+  #         - "true"
+  affinity: {}
+  
+  # Additional annotations (optional)
+  annotations: {}
+  
+  # Additional labels (optional)
+  labels: {} 

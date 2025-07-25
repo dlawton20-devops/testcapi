@@ -1,4 +1,4 @@
-{{- if .Values.operator.enabled }}
+{{- if .Values.enabled }}
 # Rook Ceph Operator
 # This must be deployed THIRD (after CRDs and common resources)
 apiVersion: apps/v1
@@ -35,11 +35,11 @@ spec:
         - name: ROOK_LOG_LEVEL
           value: "INFO"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
-          value: {{ .Values.operator.settings.ROOK_ENABLE_DISCOVERY_DAEMON | quote }}
+          value: "true"
         - name: ROOK_CSI_ENABLE_CEPHFS
-          value: {{ .Values.operator.settings.ROOK_CSI_ENABLE_CEPHFS | quote }}
+          value: "true"
         - name: ROOK_ENABLE_TELEMETRY
-          value: {{ .Values.operator.settings.ROOK_ENABLE_TELEMETRY | quote }}
+          value: "true"
         {{- with .Values.global.imagePullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}

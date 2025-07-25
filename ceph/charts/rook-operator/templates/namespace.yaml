@@ -1,8 +1,11 @@
-{{- if .Values.operator.enabled }}
+{{- if .Values.enabled }}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ include "rook-ceph.namespace" . }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-6"
   labels:
     {{- include "rook-ceph.labels" . | nindent 4 }}
     name: {{ include "rook-ceph.namespace" . }}
