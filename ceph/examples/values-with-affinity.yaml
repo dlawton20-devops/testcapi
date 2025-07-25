@@ -1,0 +1,271 @@
+# Example values.yaml with Node Affinity and Tolerations
+# This configuration is designed for a 3-node Ceph cluster
+
+# Rook Operator Configuration
+operator:
+  enabled: true
+  namespace: rook-ceph
+  # Operator settings
+  settings:
+    # Enable device discovery daemon
+    ROOK_ENABLE_DISCOVERY_DAEMON: "true"
+    # Enable CephFS CSI driver
+    ROOK_CSI_ENABLE_CEPHFS: "true"
+    # Enable telemetry
+    ROOK_ENABLE_TELEMETRY: "true"
+
+# Ceph Cluster Configuration
+cluster:
+  enabled: true
+  namespace: rook-ceph
+  
+  # Ceph cluster specification
+  spec:
+    # Ceph version to use
+    cephVersion:
+      image: quay.io/ceph/ceph:v18.2.0
+    
+    # Data directory for Ceph daemons
+    dataDirHostPath: /var/lib/rook
+    
+    # Network configuration
+    network:
+      # Enable host networking
+      hostNetwork: false
+      # Provider can be 'host' or 'multus'
+      provider: host
+    
+    # Health check configuration
+    healthCheck:
+      daemonHealth:
+        mon:
+          interval: 45s
+          timeout: 25s
+        osd:
+          interval: 60s
+          timeout: 25s
+        status:
+          interval: 60s
+          timeout: 25s
+    
+    # Dashboard configuration
+    dashboard:
+      enabled: true
+      ssl: false
+    
+    # Prometheus monitoring
+    monitoring:
+      enabled: true
+      rulesNamespace: rook-ceph
+    
+    # Crash collector
+    crashCollector:
+      disable: false
+    
+    # Placement configuration for Ceph daemons
+    placement:
+      # All daemons (mon, mgr, osd) - overrides individual settings
+      all:
+        # Node selector for all daemons
+        nodeSelector:
+          node-role.kubernetes.io/storage: "true"
+          storage-type: "ceph"
+        # Tolerations for all daemons
+        tolerations:
+        - key: "node-role.kubernetes.io/storage"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "dedicated"
+          operator: "Equal"
+          value: "ceph"
+          effect: "NoSchedule"
+        # Affinity for all daemons
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: node-role.kubernetes.io/storage
+                  operator: In
+                  values:
+                  - "true"
+                - key: storage-type
+                  operator: In
+                  values:
+                  - "ceph"
+        # Pod anti-affinity for all daemons
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-mon
+                  - rook-ceph-mgr
+                  - rook-ceph-osd
+              topologyKey: kubernetes.io/hostname
+    
+    # Storage configuration - customizable section
+    storage:
+      # Set to false when specifying individual nodes
+      useAllNodes: false
+      # Set to false when specifying individual devices
+      useAllDevices: false
+      
+      # Global configuration for all OSDs
+      config:
+        # You can customize these settings based on your hardware
+        # osdsPerDevice: "1"  # Number of OSDs per device
+        # databaseSizeMB: "1024"  # For disks smaller than 100 GB
+        # encryptedDevice: "false"  # Enable encryption if needed
+        # deviceClass: "ssd"  # Device class for OSDs
+      
+      # Whether to allow changing the device class of an OSD after it is created
+      allowDeviceClassUpdate: false
+      # Whether to allow resizing the OSD crush weight after osd pvc is increased
+      allowOsdCrushWeightUpdate: false
+      
+      # Individual nodes configuration
+      # Replace the node names with your actual Kubernetes node hostnames
+      # You can get the node names using: kubectl get nodes
+      nodes:
+        - name: "node1.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+          # Node-level configuration (optional)
+          # config:
+          #   osdsPerDevice: "2"
+        
+        - name: "node2.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+          # You can use device filters instead of specific devices
+          # deviceFilter: "^sd."
+        
+        - name: "node3.example.com"  # Replace with your actual node hostname
+          devices:
+            - name: "sdb"  # Replace with your actual device name
+            - name: "sdc"  # Replace with your actual device name
+
+# Filesystem configuration (for CephFS RWX storage)
+filesystem:
+  enabled: true
+  name: myfs
+  # Number of active MDS instances
+  activeCount: 1
+  # Number of standby MDS instances
+  standbyCount: 1
+  # Metadata pool configuration
+  metadataPool:
+    replicated:
+      size: 3
+  # Data pool configuration
+  dataPools:
+    - name: replicated
+      replicated:
+        size: 3
+
+# Storage Classes configuration
+storageClasses:
+  # CephFS Storage Class (ReadWriteMany)
+  cephfs:
+    enabled: true
+    name: rook-cephfs
+    # Default storage class for RWX
+    isDefault: true
+    # Reclaim policy
+    reclaimPolicy: Delete
+    # Volume binding mode
+    volumeBindingMode: Immediate
+    # Allow volume expansion
+    allowVolumeExpansion: true
+    # Pool name
+    pool: myfs-replicated
+
+# Toolbox configuration
+toolbox:
+  enabled: true
+  image: quay.io/ceph/ceph:v18.2.0
+
+# Test PVC configuration
+testPvc:
+  enabled: true
+  size: 1Gi
+  image: busybox:1.35
+
+# Global settings with Node Affinity and Tolerations
+global:
+  # Image registry (leave empty for default)
+  imageRegistry: ""
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  # Image pull secrets (if using private registry)
+  imagePullSecrets: []
+  
+  # Node Selector - Simple way to target specific nodes
+  nodeSelector:
+    node-role.kubernetes.io/storage: "true"
+    storage-type: "ceph"
+  
+  # Node Affinity - More complex scheduling rules
+  affinity:
+    nodeAffinity:
+      # Required rules - pods MUST be scheduled on nodes matching these criteria
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/storage
+            operator: In
+            values:
+            - "true"
+          - key: storage-type
+            operator: In
+            values:
+            - "ceph"
+      
+      # Preferred rules - pods PREFER to be scheduled on nodes matching these criteria
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values:
+            - "zone-a"
+            - "zone-b"
+            - "zone-c"
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - "storage"
+  
+  # Tolerations - Allow pods to be scheduled on nodes with specific taints
+  tolerations:
+  - key: "node-role.kubernetes.io/storage"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+  - key: "dedicated"
+    operator: "Equal"
+    value: "ceph"
+    effect: "NoSchedule"
+  - key: "storage"
+    operator: "Equal"
+    value: "ceph"
+    effect: "NoExecute"
+    tolerationSeconds: 300
+  
+  # Additional annotations (optional)
+  annotations: {}
+  
+  # Additional labels (optional)
+  labels: {} 

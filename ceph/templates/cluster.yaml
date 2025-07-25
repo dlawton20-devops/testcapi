@@ -44,6 +44,11 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   
+  {{- with .Values.cluster.spec.placement }}
+  placement:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
   # Storage configuration - customizable section
   storage:
     {{- if .Values.cluster.spec.storage.useAllNodes }}
