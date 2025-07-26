@@ -1,0 +1,12 @@
+dependencies:
+- name: rook-crds
+  repository: ""
+  version: 0.1.0
+- name: rook-operator
+  repository: ""
+  version: 0.1.0
+- name: rook-cluster
+  repository: ""
+  version: 0.1.0
+digest: sha256:d387a53ee85bf01dbe80ba488f25e3afde2a9ea377f2382d00804dc16da10386
+generated: "2025-07-26T07:28:40.0476+01:00"
