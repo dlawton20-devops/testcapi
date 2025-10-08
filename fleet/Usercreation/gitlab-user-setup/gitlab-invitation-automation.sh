@@ -200,10 +200,11 @@ invite_user_to_repo() {
         local error_msg
         error_msg=$(jq -r '.message' /tmp/gitlab_response.json 2>/dev/null || echo "Unknown error")
         log "${YELLOW}⚠ Invitation validation failed for ${email}: ${error_msg}${NC}"
+        # Continue processing other users even if this one fails
     else
         log "${RED}✗ Failed to invite ${email} to repository (HTTP ${response})${NC}"
         cat /tmp/gitlab_response.json 2>/dev/null || echo "No response body"
-        return 1
+        # Continue processing other users even if this one fails
     fi
 }
 
@@ -221,7 +222,9 @@ invite_all_users_to_all_repos() {
         repo_id=$(get_repo_id "$repo_name")
         
         if [ $? -eq 0 ]; then
+            log "${BLUE}Found repository ${repo_name} with ID: ${repo_id}${NC}"
             for email in "${USER_EMAILS[@]}"; do
+                log "${PURPLE}Inviting ${email} to ${repo_name}${NC}"
                 invite_user_to_repo "$email" "$repo_id" "$access_level"
                 # Small delay to avoid rate limiting
                 sleep 0.5
