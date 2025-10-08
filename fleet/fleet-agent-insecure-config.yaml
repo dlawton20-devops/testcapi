@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-agent
+  namespace: cattle-fleet-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: fleet-agent
+        env:
+        - name: HELM_DRIVER
+          value: "secret"
+        - name: HELM_REGISTRY_CONFIG
+          value: "/tmp/registry.json"
+        - name: HELM_EXPERIMENTAL_OCI
+          value: "1"
+        - name: HELM_REGISTRY_INSECURE
+          value: "true"
+        volumeMounts:
+        - name: registry-config
+          mountPath: /tmp/registry.json
+          subPath: registry.json
+      volumes:
+      - name: registry-config
+        configMap:
+          name: helm-registry-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helm-registry-config
+  namespace: cattle-fleet-system
+data:
+  registry.json: |
+    {
+      "auths": {
+        "harbor.your-domain.com": {
+          "username": "robot$project-name$fleet-robot",
+          "password": "your-robot-token",
+          "email": "robot@your-domain.com"
+        }
+      },
+      "HttpHeaders": {
+        "User-Agent": "helm/3.12.0"
+      },
+      "insecure-registries": [
+        "harbor.your-domain.com"
+      ]
+    } 

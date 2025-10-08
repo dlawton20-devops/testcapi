@@ -1,0 +1,42 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  name: monitoring-stack
+  namespace: fleet-local
+spec:
+  resources:
+  - content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: monitoring
+        labels:
+          name: monitoring
+    name: namespace.yaml
+  - content: |
+      apiVersion: fleet.cattle.io/v1alpha1
+      kind: HelmApp
+      metadata:
+        name: prometheus-stack
+        namespace: monitoring
+      spec:
+        helm:
+          chart: kube-prometheus-stack
+          repo: oci://harbor.your-domain.com/monitoring
+          version: "55.5.0"
+          helmSecretName: harbor-secret
+          values:
+            grafana:
+              enabled: true
+              adminPassword: "admin123"
+            prometheus:
+              prometheusSpec:
+                retention: 7d
+            alertmanager:
+              enabled: true
+    name: helmapp.yaml
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: dev
+    defaultNamespace: monitoring 

@@ -1,0 +1,24 @@
+# Environment-specific overrides for dev
+grafana:
+  adminPassword: "dev123"
+  persistence:
+    size: 5Gi
+
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 20Gi
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 5Gi 

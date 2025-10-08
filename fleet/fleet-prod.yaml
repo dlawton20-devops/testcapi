@@ -1,0 +1,14 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: monitoring-prod
+  namespace: fleet-local
+spec:
+  repo: https://github.com/dlawton20-devops/gitops
+  branch: prod
+  paths:
+  - monitoring
+  targets:
+  - clusterSelector:
+      matchLabels:
+        env: prod 

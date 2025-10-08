@@ -1,0 +1,29 @@
+# Custom values for monitoring stack
+grafana:
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+  dashboards:
+    default:
+      custom-dashboard:
+        gnetId: 1860
+        revision: 22
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      - job_name: 'custom-service'
+        static_configs:
+          - targets: ['custom-service:8080']
+        metrics_path: /metrics 

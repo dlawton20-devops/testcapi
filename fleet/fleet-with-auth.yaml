@@ -1,0 +1,22 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: monitoring-dev
+  namespace: fleet-local
+spec:
+  repo: https://gitlab.com/your-username/your-repo.git
+  branch: dev
+  paths:
+    - monitoring/01-crds
+    - monitoring/02-custom-manifests
+    - monitoring/03-monitoring-stack
+  # GitLab authentication
+  clientSecretName: gitlab-secret
+  # Path-specific Harbor authentication (per Fleet docs)
+  # https://fleet.rancher.io/gitrepo-add#use-different-helm-credentials-for-each-path
+  helmSecretName: monitoring-path-credentials
+  targets:
+    - name: dev-clusters
+      clusterSelector:
+        matchLabels:
+          env: dev 

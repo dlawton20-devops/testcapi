@@ -1,0 +1,19 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: monitoring-dev
+  namespace: fleet-local
+spec:
+  repo: https://gitlab.com/your-username/your-repo.git
+  branch: dev
+  paths:
+    - monitoring
+  # GitLab authentication
+  clientSecretName: gitlab-secret
+  # Harbor authentication for Helm charts
+  helmSecretName: harbor-secret
+  targets:
+    - name: dev-clusters
+      clusterSelector:
+        matchLabels:
+          env: dev

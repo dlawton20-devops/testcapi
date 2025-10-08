@@ -1,0 +1,12 @@
+defaultNamespace: monitoring
+targetNamespace: monitoring
+
+# 02 - Custom manifests after CRDs
+# Using Kustomize for raw Kubernetes manifests
+kustomize:
+  dir: overlays/dev  # Use dev overlay
+
+targets:
+- clusterSelector:
+    matchLabels:
+      env: dev 

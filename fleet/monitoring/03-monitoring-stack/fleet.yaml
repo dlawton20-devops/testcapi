@@ -1,0 +1,16 @@
+defaultNamespace: monitoring
+targetNamespace: monitoring
+
+# 03 - Main monitoring stack last
+helm:
+  chart: rancher-monitoring
+  version: 102.0.0_up40.1.2
+  helmSecretName: harbor-secret
+  valuesFiles:
+    - values.yaml
+    - values-custom.yaml
+
+targets:
+- clusterSelector:
+    matchLabels:
+      env: dev 

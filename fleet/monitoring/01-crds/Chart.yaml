@@ -1,0 +1,10 @@
+apiVersion: v2
+name: monitoring-crds
+description: CRDs for monitoring stack
+type: application
+version: 0.1.0
+appVersion: "102.0.0_up40.1.2"
+dependencies:
+  - name: rancher-monitoring-crd
+    version: 102.0.0_up40.1.2
+    repository: http://harbor.your-domain.com/monitoring 

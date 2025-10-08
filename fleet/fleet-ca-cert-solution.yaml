@@ -1,0 +1,70 @@
+# Solution based on Fleet troubleshooting documentation
+# https://fleet.rancher.io/troubleshooting
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harbor-ca-cert
+  namespace: cattle-fleet-system
+data:
+  harbor-ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    # Replace with your Harbor CA certificate
+    # Get this from: openssl s_client -connect harbor.your-domain.com:443 -servername harbor.your-domain.com < /dev/null 2>/dev/null | openssl x509 -outform PEM
+    -----END CERTIFICATE-----
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-agent
+  namespace: cattle-fleet-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: fleet-agent
+        env:
+        - name: HELM_DRIVER
+          value: "secret"
+        - name: HELM_EXPERIMENTAL_OCI
+          value: "1"
+        - name: HELM_REGISTRY_CONFIG
+          value: "/tmp/registry.json"
+        volumeMounts:
+        - name: harbor-ca
+          mountPath: /usr/local/share/ca-certificates/harbor-ca.crt
+          subPath: harbor-ca.crt
+          readOnly: true
+        - name: registry-config
+          mountPath: /tmp/registry.json
+          subPath: registry.json
+      volumes:
+      - name: harbor-ca
+        configMap:
+          name: harbor-ca-cert
+      - name: registry-config
+        configMap:
+          name: helm-registry-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helm-registry-config
+  namespace: cattle-fleet-system
+data:
+  registry.json: |
+    {
+      "auths": {
+        "harbor.your-domain.com": {
+          "username": "robot$project-name$fleet-robot",
+          "password": "your-robot-token",
+          "email": "robot@your-domain.com"
+        }
+      },
+      "HttpHeaders": {
+        "User-Agent": "helm/3.12.0"
+      },
+      "insecure-registries": [
+        "harbor.your-domain.com"
+      ]
+    } 

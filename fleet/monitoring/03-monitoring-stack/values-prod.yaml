@@ -1,0 +1,26 @@
+# Production environment values
+# This file would be in the 'prod' branch
+
+grafana:
+  adminPassword: "prod456"
+  persistence:
+    size: 50Gi
+
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 500Gi
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 50Gi 

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harbor-ca-cert
+  namespace: cattle-fleet-system
+data:
+  harbor-ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    # Add your Harbor CA certificate here
+    # You can get this from Harbor UI or from the Harbor server
+    # /etc/ssl/certs/harbor-ca.crt
+    -----END CERTIFICATE-----
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-agent
+  namespace: cattle-fleet-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: fleet-agent
+        volumeMounts:
+        - name: harbor-ca
+          mountPath: /usr/local/share/ca-certificates/harbor-ca.crt
+          subPath: harbor-ca.crt
+          readOnly: true
+      volumes:
+      - name: harbor-ca
+        configMap:
+          name: harbor-ca-cert 
