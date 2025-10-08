@@ -1,0 +1,11 @@
+# Example Terraform Variables File
+# Copy this to terraform.tfvars and update with your values
+
+rancher_api_url = "https://rancher.your-domain.com"
+rancher_token   = "token-xxxxx:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+rancher_insecure = false
+cluster_id      = "c-xxxxx"
+username        = "lma-user"
+password        = "your-secure-password"
+display_name    = "LMA User"
+email          = "lma-user@example.com"

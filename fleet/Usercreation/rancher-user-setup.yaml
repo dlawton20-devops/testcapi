@@ -1,0 +1,92 @@
+# Rancher Local User Setup Manifests
+# Replace 'your-local-user-id' with the actual Rancher user ID
+
+---
+# 1. Global Member Role Binding (Rancher built-in)
+apiVersion: management.cattle.io/v3
+kind: GlobalRoleBinding
+metadata:
+  name: local-user-global-member
+  namespace: "cattle-global-data"
+globalRoleId: "user"  # Rancher's built-in global member role
+userId: "your-local-user-id"  # Replace with actual Rancher user ID
+
+---
+# 2. Cluster Member Role Binding (Rancher built-in)
+apiVersion: management.cattle.io/v3
+kind: ClusterRoleTemplateBinding
+metadata:
+  name: local-user-cluster-member
+  namespace: "cattle-global-data"
+clusterRoleTemplateId: "cluster-member"  # Rancher's built-in cluster member role
+userId: "your-local-user-id"  # Replace with actual Rancher user ID
+
+---
+# 3. Cluster Viewer Role Binding (Rancher built-in)
+apiVersion: management.cattle.io/v3
+kind: ClusterRoleTemplateBinding
+metadata:
+  name: local-user-cluster-viewer
+  namespace: "cattle-global-data"
+clusterRoleTemplateId: "cluster-view"  # Rancher's built-in cluster viewer role
+userId: "your-local-user-id"  # Replace with actual Rancher user ID
+
+---
+# 4. Create LMA Project
+apiVersion: management.cattle.io/v3
+kind: Project
+metadata:
+  name: lma
+  namespace: "cattle-global-data"
+  labels:
+    field.cattle.io/projectId: "c-xxxxx:p-xxxxx"  # Replace with actual cluster and project IDs
+spec:
+  displayName: "LMA (Logging, Monitoring, Alerting)"
+  description: "Project for Logging, Monitoring, and Alerting components"
+  clusterName: "your-cluster-name"  # Replace with actual cluster name
+
+---
+# 5. Add cattle-monitoring-system namespace to LMA project
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-monitoring-system
+  labels:
+    field.cattle.io/projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+    management.cattle.io/system: "true"
+  annotations:
+    field.cattle.io/projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+
+---
+# 6. Add cattle-logging-system namespace to LMA project
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-logging-system
+  labels:
+    field.cattle.io/projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+    management.cattle.io/system: "true"
+  annotations:
+    field.cattle.io/projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+
+---
+# 7. Project Member Role Binding (Rancher built-in)
+apiVersion: management.cattle.io/v3
+kind: ProjectRoleTemplateBinding
+metadata:
+  name: local-user-lma-readonly
+  namespace: "cattle-global-data"
+projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+roleTemplateId: "project-member"  # Rancher's built-in project member role
+userId: "your-local-user-id"  # Replace with actual Rancher user ID
+
+---
+# 8. Project Viewer Role Binding (Rancher built-in) - Read-only access
+apiVersion: management.cattle.io/v3
+kind: ProjectRoleTemplateBinding
+metadata:
+  name: local-user-lma-viewer
+  namespace: "cattle-global-data"
+projectId: "c-xxxxx:p-xxxxx"  # Replace with actual project ID
+roleTemplateId: "project-view"  # Rancher's built-in project viewer role
+userId: "your-local-user-id"  # Replace with actual Rancher user ID

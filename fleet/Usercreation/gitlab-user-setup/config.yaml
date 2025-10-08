@@ -1,0 +1,79 @@
+# GitLab User and Repository Configuration
+# This file defines 6 users and 10 repositories for automation
+
+gitlab:
+  url: "https://gitlab.example.com"  # Replace with your GitLab URL
+  token: "your-gitlab-token-here"    # Replace with your GitLab token
+
+# 6 users to create
+users:
+  - username: "alice-dev"
+    email: "alice.dev@example.com"
+    name: "Alice Developer"
+    password: "SecurePassword123!"
+  
+  - username: "bob-dev"
+    email: "bob.dev@example.com"
+    name: "Bob Developer"
+    password: "SecurePassword123!"
+  
+  - username: "charlie-dev"
+    email: "charlie.dev@example.com"
+    name: "Charlie Developer"
+    password: "SecurePassword123!"
+  
+  - username: "diana-dev"
+    email: "diana.dev@example.com"
+    name: "Diana Developer"
+    password: "SecurePassword123!"
+  
+  - username: "eve-dev"
+    email: "eve.dev@example.com"
+    name: "Eve Developer"
+    password: "SecurePassword123!"
+  
+  - username: "frank-dev"
+    email: "frank.dev@example.com"
+    name: "Frank Developer"
+    password: "SecurePassword123!"
+
+# 10 repositories to invite users to
+# All users get Developer access (level 30) to all repositories
+# Access levels: 10=Guest, 20=Reporter, 30=Developer, 40=Maintainer, 50=Owner
+repositories:
+  # Option 1: By repository name (searches all projects)
+  - name: "frontend-app"
+    access_level: 30  # Developer
+  
+  # Option 2: By full project path (group/project)
+  - name: "my-group/backend-api"
+    access_level: 30  # Developer
+  
+  # Option 3: By project ID (numeric ID)
+  - name: "123"  # Project ID
+    access_level: 30  # Developer
+  
+  # Option 4: By full GitLab URL path
+  - name: "my-org/my-group/mobile-app"
+    access_level: 30  # Developer
+  
+  - name: "devops-tools"
+    access_level: 30  # Developer
+  
+  - name: "documentation"
+    access_level: 30  # Developer
+  
+  - name: "testing-framework"
+    access_level: 30  # Developer
+  
+  - name: "shared-libraries"
+    access_level: 30  # Developer
+  
+  - name: "infrastructure"
+    access_level: 30  # Developer
+  
+  - name: "monitoring"
+    access_level: 30  # Developer
+  
+  - name: "security-tools"
+    access_level: 30  # Developer
