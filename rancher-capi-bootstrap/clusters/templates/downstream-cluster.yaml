@@ -1,0 +1,265 @@
+# Downstream Cluster Template
+# This creates a downstream cluster using CAPI + Node Driver
+# Replaces your Terraform node driver deployment
+
+---
+# 1. CLUSTER (Core CAPI)
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: downstream-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    managed-by: capi
+    cluster-type: downstream
+spec:
+  # Cluster network configuration
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: "cluster.local"
+  
+  # Control plane configuration
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: downstream-cluster-control-plane
+  
+  # Infrastructure configuration
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: downstream-cluster
+
+---
+# 2. OPENSTACK CLUSTER (Infrastructure)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: downstream-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  # OpenStack configuration
+  cloudName: "production"
+  cloudSecretName: "openstack-credentials"
+  
+  # Network configuration
+  managedSecurityGroups: false
+  disablePortSecurity: false
+  
+  # Load balancer for API server
+  loadBalancer:
+    enabled: true
+    provider: "octavia"
+    method: "ROUND_ROBIN"
+    methodVipSubnet: "public"
+  
+  # Tags for tracking
+  tags:
+    - "cluster-api-provider-openstack"
+    - "kubeadm"
+    - "downstream"
+    - "node-driver"
+
+---
+# 3. KUBEADM CONTROL PLANE (Control Plane)
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: downstream-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  # Number of control plane replicas
+  replicas: 1
+  
+  # Kubernetes version
+  version: "v1.28.5"
+  
+  # Kubeadm configuration
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        certSANs:
+          - "downstream-cluster.example.com"
+          - "10.0.0.200"  # Load balancer IP
+        extraArgs:
+          enable-admission-plugins: "NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+      controllerManager:
+        extraArgs:
+          bind-address: "0.0.0.0"
+      scheduler:
+        extraArgs:
+          bind-address: "0.0.0.0"
+      etcd:
+        local:
+          extraArgs:
+            listen-metrics-urls: "http://0.0.0.0:2381"
+    
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cgroup-driver: "systemd"
+          eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+    
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cgroup-driver: "systemd"
+          eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+  
+  # Machine template
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: OpenStackMachineTemplate
+      name: downstream-cluster-control-plane
+
+---
+# 4. OPENSTACK MACHINE TEMPLATE (Control Plane)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: downstream-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.medium"
+      image: "ubuntu-22.04"
+      sshKeyName: "downstream-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "downstream-control-plane"
+      
+      # User data for kubeadm installation
+      userDataSecret:
+        name: downstream-control-plane-user-data
+      
+      # Tags
+      tags:
+        - "kubeadm"
+        - "control-plane"
+        - "downstream"
+        - "node-driver"
+
+---
+# 5. MACHINE DEPLOYMENT (Workers)
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: downstream-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  # Number of worker nodes
+  replicas: 3
+  
+  # Cluster reference
+  clusterName: downstream-cluster
+  
+  # Machine template
+  template:
+    spec:
+      # Bootstrap configuration
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: downstream-cluster-workers
+      
+      # Infrastructure configuration
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: downstream-cluster-workers
+      
+      # Kubernetes version
+      version: "v1.28.5"
+
+---
+# 6. KUBEADM CONFIG TEMPLATE (Bootstrap)
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: downstream-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cgroup-driver: "systemd"
+            eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+
+---
+# 7. OPENSTACK MACHINE TEMPLATE (Workers)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: downstream-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: downstream-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    cluster-type: downstream
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.small"
+      image: "ubuntu-22.04"
+      sshKeyName: "downstream-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "downstream-worker"
+      
+      # User data for kubeadm installation
+      userDataSecret:
+        name: downstream-worker-user-data
+      
+      # Tags
+      tags:
+        - "kubeadm"
+        - "worker"
+        - "downstream"
+        - "node-driver"

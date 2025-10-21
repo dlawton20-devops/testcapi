@@ -1,0 +1,209 @@
+# Production Cluster Template using Cluster API
+# This creates a production-ready Kubernetes cluster
+
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: production-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    managed-by: capi
+spec:
+  # Cluster network configuration
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: "cluster.local"
+  
+  # Control plane configuration
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: production-cluster-control-plane
+  
+  # Infrastructure configuration
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: DockerCluster
+    name: production-cluster
+
+---
+# Kubeadm Control Plane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: production-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of control plane replicas
+  replicas: 1
+  
+  # Kubernetes version
+  version: "v1.28.5"
+  
+  # Kubeadm configuration
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        certSANs:
+          - "localhost"
+          - "127.0.0.1"
+        extraArgs:
+          enable-admission-plugins: "NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+      controllerManager:
+        extraArgs:
+          bind-address: "0.0.0.0"
+      scheduler:
+        extraArgs:
+          bind-address: "0.0.0.0"
+      etcd:
+        local:
+          extraArgs:
+            listen-metrics-urls: "http://0.0.0.0:2381"
+    
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cgroup-driver: "systemd"
+          eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+    
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          cgroup-driver: "systemd"
+          eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+  
+  # Machine template
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: DockerMachineTemplate
+      name: production-cluster-control-plane
+
+---
+# Docker Machine Template for Control Plane
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: DockerMachineTemplate
+metadata:
+  name: production-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # Docker image for the control plane node
+      customImage: "kindest/node:v1.28.5"
+      
+      # Extra mounts for persistent storage
+      extraMounts:
+        - containerPath: /var/lib/containerd
+          hostPath: /tmp/kind-storage
+          propagation: None
+
+---
+# Docker Cluster
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: DockerCluster
+metadata:
+  name: production-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Load balancer configuration
+  loadBalancer:
+    image: "kindest/haproxy:v20231030-486859a6"
+
+---
+# Machine Deployment for Worker Nodes
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of worker nodes
+  replicas: 3
+  
+  # Cluster reference
+  clusterName: production-cluster
+  
+  # Machine template
+  template:
+    spec:
+      # Bootstrap configuration
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: production-cluster-workers
+      
+      # Infrastructure configuration
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: DockerMachineTemplate
+        name: production-cluster-workers
+      
+      # Kubernetes version
+      version: "v1.28.5"
+
+---
+# Kubeadm Config Template for Workers
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cgroup-driver: "systemd"
+            eviction-hard: "nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+
+---
+# Docker Machine Template for Workers
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: DockerMachineTemplate
+metadata:
+  name: production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # Docker image for worker nodes
+      customImage: "kindest/node:v1.28.5"
+      
+      # Extra mounts for persistent storage
+      extraMounts:
+        - containerPath: /var/lib/containerd
+          hostPath: /tmp/kind-storage
+          propagation: None

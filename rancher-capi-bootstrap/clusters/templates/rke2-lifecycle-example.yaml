@@ -1,0 +1,222 @@
+# Complete RKE2 + OpenStack Lifecycle Example
+# This shows how all CAPI components work together
+
+---
+# 1. CLUSTER CONTROLLER (Core)
+# This is the central orchestrator
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: rke2-lifecycle-example
+  namespace: default
+spec:
+  # Links to control plane controller
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: RKE2ControlPlane
+    name: rke2-lifecycle-example-control-plane
+  
+  # Links to infrastructure controller
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: rke2-lifecycle-example
+  
+  # Cluster network configuration
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: "cluster.local"
+
+---
+# 2. INFRASTRUCTURE CONTROLLER (CAPO)
+# Creates and manages OpenStack infrastructure
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: rke2-lifecycle-example
+  namespace: default
+spec:
+  # OpenStack configuration
+  cloudName: "production"
+  cloudSecretName: "openstack-credentials"
+  
+  # Network configuration
+  managedSecurityGroups: false
+  disablePortSecurity: false
+  
+  # Load balancer for API server
+  loadBalancer:
+    enabled: true
+    provider: "octavia"
+    method: "ROUND_ROBIN"
+  
+  # Tags for tracking
+  tags:
+    - "cluster-api-provider-openstack"
+    - "rke2"
+    - "lifecycle-example"
+
+---
+# 3. CONTROL PLANE CONTROLLER (RKE2)
+# Manages the control plane machines
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: RKE2ControlPlane
+metadata:
+  name: rke2-lifecycle-example-control-plane
+  namespace: default
+spec:
+  # Number of control plane replicas
+  replicas: 1
+  
+  # RKE2 version
+  version: "v1.28.5+rke2r1"
+  
+  # RKE2 server configuration
+  serverConfig:
+    # TLS configuration
+    tls-san:
+      - "rke2-lifecycle.example.com"
+      - "10.0.0.100"  # Load balancer IP
+    
+    # Network configuration
+    cluster-cidr: "10.244.0.0/16"
+    service-cidr: "10.96.0.0/12"
+    
+    # API server configuration
+    kube-apiserver-arg:
+      - "enable-admission-plugins=NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+  
+  # Links to infrastructure machine template
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: OpenStackMachineTemplate
+      name: rke2-lifecycle-example-control-plane
+
+---
+# 4. INFRASTRUCTURE MACHINE TEMPLATE (CAPO)
+# Template for creating control plane machines
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rke2-lifecycle-example-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.large"
+      image: "ubuntu-22.04"
+      sshKeyName: "rke2-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rke2-control-plane"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rke2-control-plane-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "control-plane"
+        - "lifecycle-example"
+
+---
+# 5. MACHINE DEPLOYMENT (Core)
+# Manages worker machines
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: rke2-lifecycle-example-workers
+  namespace: default
+spec:
+  # Number of worker nodes
+  replicas: 3
+  
+  # Links to cluster
+  clusterName: rke2-lifecycle-example
+  
+  # Machine template
+  template:
+    spec:
+      # Links to bootstrap controller
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: RKE2ConfigTemplate
+          name: rke2-lifecycle-example-workers
+      
+      # Links to infrastructure controller
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: rke2-lifecycle-example-workers
+      
+      # Kubernetes version
+      version: "v1.28.5+rke2r1"
+
+---
+# 6. BOOTSTRAP CONFIG TEMPLATE (RKE2 Bootstrap)
+# Template for worker node configuration
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: RKE2ConfigTemplate
+metadata:
+  name: rke2-lifecycle-example-workers
+  namespace: default
+spec:
+  template:
+    spec:
+      # RKE2 agent configuration
+      agentConfig:
+        # Node configuration
+        node-name: "worker-${CLUSTER_NAME}-${MACHINE_NAME}"
+        
+        # Network configuration
+        cluster-cidr: "10.244.0.0/16"
+        service-cidr: "10.96.0.0/12"
+        
+        # Kubelet configuration
+        kubelet-arg:
+          - "cgroup-driver=systemd"
+          - "eviction-hard=nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+
+---
+# 7. INFRASTRUCTURE MACHINE TEMPLATE FOR WORKERS (CAPO)
+# Template for creating worker machines
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rke2-lifecycle-example-workers
+  namespace: default
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.medium"
+      image: "ubuntu-22.04"
+      sshKeyName: "rke2-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rke2-worker"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rke2-worker-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "worker"
+        - "lifecycle-example"

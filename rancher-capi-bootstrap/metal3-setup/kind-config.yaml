@@ -1,0 +1,89 @@
+# Kind Cluster Configuration for Metal3 Management
+# Multi-node cluster with proper networking and storage
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Cluster name
+name: metal3-management
+
+# Network configuration
+networking:
+  # API server port
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: 6443
+  
+  # Pod subnet
+  podSubnet: "10.244.0.0/16"
+  
+  # Service subnet
+  serviceSubnet: "10.96.0.0/12"
+  
+  # Disable default CNI (we'll install Calico)
+  disableDefaultCNI: false
+
+# Node configuration
+nodes:
+  # Control plane node
+  - role: control-plane
+    image: kindest/node:v1.28.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # HTTP ingress
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      # HTTPS ingress
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      # Metal3 Ironic API
+      - containerPort: 6385
+        hostPort: 6385
+        protocol: TCP
+      # Metal3 Ironic Inspector
+      - containerPort: 5050
+        hostPort: 5050
+        protocol: TCP
+    extraMounts:
+      # Mount local storage for persistent volumes
+      - hostPath: /tmp/metal3-storage
+        containerPath: /var/lib/containerd
+        propagation: None
+
+  # Worker nodes
+  - role: worker
+    image: kindest/node:v1.28.0
+    extraMounts:
+      - hostPath: /tmp/metal3-storage
+        containerPath: /var/lib/containerd
+        propagation: None
+
+  - role: worker
+    image: kindest/node:v1.28.0
+    extraMounts:
+      - hostPath: /tmp/metal3-storage
+        containerPath: /var/lib/containerd
+        propagation: None
+
+# Feature gates for advanced features
+featureGates:
+  "EphemeralContainers": true
+  "KubeletInUserNamespace": true
+
+# Runtime configuration
+runtimeConfig:
+  "api/alpha": "true"
+
+# Containerd configuration
+containerdConfigPatches:
+  - |
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
+      endpoint = ["http://localhost:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+      endpoint = ["https://registry-1.docker.io"]

@@ -1,0 +1,143 @@
+# Default Environment Values for Rancher CAPI Bootstrap
+# Copy this directory and modify values for different environments
+
+# Cluster configuration
+cluster:
+  name: rancher-capi-bootstrap
+  nodes: 3  # Number of worker nodes
+  virtual_ip: ""  # Will be set automatically by bootstrap script
+  kubernetes_version: "v1.28.0"
+
+# Cluster API configuration
+capi:
+  version: "v1.6.0"
+  namespace: "capi-system"
+  providers:
+    core:
+      name: "cluster-api"
+      version: "v1.6.0"
+    docker:
+      name: "docker"
+      version: "v1.6.0"
+    kubeadm:
+      name: "kubeadm"
+      version: "v1.6.0"
+    bootstrap:
+      name: "kubeadm-bootstrap"
+      version: "v1.6.0"
+    control-plane:
+      name: "kubeadm-control-plane"
+      version: "v1.6.0"
+
+# Flux configuration
+flux:
+  version: "latest"
+  namespace: "flux-system"
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+  git:
+    default_branch: "main"
+    default_interval: "1m"
+
+# Rancher configuration
+rancher:
+  api_url: "https://rancher.example.com"
+  insecure: false
+  operator:
+    version: "latest"
+    namespace: "rancher-system"
+  clusters:
+    - name: "production"
+      id: "c-xxxxx"
+      description: "Production cluster"
+    - name: "staging"
+      id: "c-yyyyy"
+      description: "Staging cluster"
+
+# Workload cluster configuration
+workload_clusters:
+  production:
+    name: "production-cluster"
+    kubernetes_version: "v1.28.5"
+    control_plane_replicas: 1
+    worker_replicas: 3
+    machine_type: "docker"
+    labels:
+      environment: "production"
+      managed-by: "capi"
+  staging:
+    name: "staging-cluster"
+    kubernetes_version: "v1.28.5"
+    control_plane_replicas: 1
+    worker_replicas: 2
+    machine_type: "docker"
+    labels:
+      environment: "staging"
+      managed-by: "capi"
+
+# GitOps configuration
+gitops:
+  repository:
+    url: "https://github.com/your-org/rancher-capi-infrastructure"
+    branch: "main"
+    path: "./clusters"
+  
+  # Approval settings
+  approval:
+    default_mode: "auto"  # auto for CAPI clusters
+    timeout: "24h"
+  
+  # Drift detection
+  drift_detection:
+    enabled: true
+    interval: "10m"
+    auto_remediate: true
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  namespace: "monitoring"
+  components:
+    - prometheus
+    - grafana
+    - alertmanager
+  scrape_interval: "30s"
+
+# Security configuration
+security:
+  # RBAC settings
+  rbac:
+    create_admin_user: true
+    admin_username: "admin"
+    admin_password: "changeme123"
+  
+  # Network policies
+  network_policies:
+    enabled: true
+  
+  # Pod security standards
+  pod_security:
+    enforce: "restricted"
+    audit: "restricted"
+    warn: "restricted"
+
+# Storage configuration
+storage:
+  # Local storage for kind
+  local:
+    enabled: true
+    path: "/tmp/kind-storage"
+  
+  # Persistent volume configuration
+  persistent_volumes:
+    enabled: true
+    storage_class: "standard"
+    size: "10Gi"
+
+# Development settings
+development:
+  debug: false
+  verbose_logging: false
+  skip_validation: false

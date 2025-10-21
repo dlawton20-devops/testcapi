@@ -1,0 +1,75 @@
+# Rancher User Resource using Custom Operator
+# This creates a Rancher user using the custom Rancher operator
+
+apiVersion: rancher.io/v1
+kind: RancherUser
+metadata:
+  name: lma-user
+  namespace: default
+  labels:
+    app.kubernetes.io/name: lma-user
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # User configuration
+  username: "lma-user"
+  displayName: "LMA User"
+  email: "lma-user@example.com"
+  enabled: true
+  
+  # Rancher configuration
+  rancherApiUrl: "https://rancher.example.com"
+  rancherToken: "token-xxxxx:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  clusterId: "c-xxxxx"
+  
+  # Project configuration
+  createLmaProject: true
+  lmaProjectName: "lma"
+  
+  # GitOps configuration
+  gitops:
+    enabled: true
+    sourceRef:
+      kind: GitRepository
+      name: rancher-infrastructure
+      namespace: flux-system
+
+---
+# Rancher Project Resource
+apiVersion: rancher.io/v1
+kind: RancherProject
+metadata:
+  name: lma-project
+  namespace: default
+  labels:
+    app.kubernetes.io/name: lma-project
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Project configuration
+  name: "lma"
+  clusterId: "c-xxxxx"
+  description: "LMA (Logging, Monitoring, Alerting) Project"
+  
+  # Rancher configuration
+  rancherApiUrl: "https://rancher.example.com"
+  rancherToken: "token-xxxxx:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  
+  # Namespaces to create in the project
+  namespaces:
+    - name: "cattle-monitoring-system"
+      labels:
+        "management.cattle.io/system": "true"
+        "app.kubernetes.io/managed-by": "rancher-operator"
+    - name: "cattle-logging-system"
+      labels:
+        "management.cattle.io/system": "true"
+        "app.kubernetes.io/managed-by": "rancher-operator"
+  
+  # GitOps configuration
+  gitops:
+    enabled: true
+    sourceRef:
+      kind: GitRepository
+      name: rancher-infrastructure
+      namespace: flux-system

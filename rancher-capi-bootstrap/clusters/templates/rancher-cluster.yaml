@@ -1,0 +1,268 @@
+# Rancher Cluster Template
+# This creates a 3-node Rancher cluster using CAPI + RKE2
+# Replaces your Terraform platform builder
+
+---
+# 1. CLUSTER (Core CAPI)
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: rancher-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    managed-by: capi
+spec:
+  # Cluster network configuration
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: "cluster.local"
+  
+  # Control plane configuration
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: RKE2ControlPlane
+    name: rancher-cluster-control-plane
+  
+  # Infrastructure configuration
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: rancher-cluster
+
+---
+# 2. OPENSTACK CLUSTER (Infrastructure)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: rancher-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # OpenStack configuration
+  cloudName: "production"
+  cloudSecretName: "openstack-credentials"
+  
+  # Network configuration
+  managedSecurityGroups: false
+  disablePortSecurity: false
+  
+  # Load balancer for API server
+  loadBalancer:
+    enabled: true
+    provider: "octavia"
+    method: "ROUND_ROBIN"
+    methodVipSubnet: "public"
+  
+  # Tags for tracking
+  tags:
+    - "cluster-api-provider-openstack"
+    - "rke2"
+    - "rancher"
+    - "management-cluster"
+
+---
+# 3. RKE2 CONTROL PLANE (Control Plane)
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: RKE2ControlPlane
+metadata:
+  name: rancher-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of control plane replicas (3 for HA)
+  replicas: 3
+  
+  # RKE2 version
+  version: "v1.28.5+rke2r1"
+  
+  # RKE2 server configuration
+  serverConfig:
+    # TLS configuration
+    tls-san:
+      - "rancher.example.com"
+      - "10.0.0.100"  # Load balancer IP
+      - "rancher-cluster.example.com"
+    
+    # Network configuration
+    cluster-cidr: "10.244.0.0/16"
+    service-cidr: "10.96.0.0/12"
+    
+    # API server configuration
+    kube-apiserver-arg:
+      - "enable-admission-plugins=NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+      - "audit-log-maxage=30"
+      - "audit-log-maxbackup=3"
+      - "audit-log-maxsize=100"
+      - "audit-log-path=/var/log/audit.log"
+    
+    # Controller manager configuration
+    kube-controller-manager-arg:
+      - "bind-address=0.0.0.0"
+      - "cluster-cidr=10.244.0.0/16"
+      - "service-cluster-ip-range=10.96.0.0/12"
+    
+    # Scheduler configuration
+    kube-scheduler-arg:
+      - "bind-address=0.0.0.0"
+    
+    # Etcd configuration
+    etcd-arg:
+      - "listen-metrics-urls=http://0.0.0.0:2381"
+  
+  # Machine template
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: OpenStackMachineTemplate
+      name: rancher-cluster-control-plane
+
+---
+# 4. OPENSTACK MACHINE TEMPLATE (Infrastructure)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rancher-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.large"
+      image: "ubuntu-22.04"
+      sshKeyName: "rancher-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rancher-control-plane"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rancher-control-plane-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "control-plane"
+        - "rancher"
+        - "management-cluster"
+
+---
+# 5. MACHINE DEPLOYMENT (Workers)
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: rancher-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of worker nodes (0 for now, can add later)
+  replicas: 0
+  
+  # Cluster reference
+  clusterName: rancher-cluster
+  
+  # Machine template
+  template:
+    spec:
+      # Bootstrap configuration
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: RKE2ConfigTemplate
+          name: rancher-cluster-workers
+      
+      # Infrastructure configuration
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: rancher-cluster-workers
+      
+      # Kubernetes version
+      version: "v1.28.5+rke2r1"
+
+---
+# 6. RKE2 CONFIG TEMPLATE (Bootstrap)
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: RKE2ConfigTemplate
+metadata:
+  name: rancher-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # RKE2 agent configuration
+      agentConfig:
+        # Node configuration
+        node-name: "worker-${CLUSTER_NAME}-${MACHINE_NAME}"
+        
+        # Network configuration
+        cluster-cidr: "10.244.0.0/16"
+        service-cidr: "10.96.0.0/12"
+        
+        # Kubelet configuration
+        kubelet-arg:
+          - "cgroup-driver=systemd"
+          - "eviction-hard=nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+
+---
+# 7. OPENSTACK MACHINE TEMPLATE (Workers)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rancher-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rancher-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.medium"
+      image: "ubuntu-22.04"
+      sshKeyName: "rancher-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rancher-worker"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rancher-worker-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "worker"
+        - "rancher"
+        - "management-cluster"

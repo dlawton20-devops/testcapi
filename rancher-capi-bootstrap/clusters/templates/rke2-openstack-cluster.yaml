@@ -1,0 +1,261 @@
+# RKE2 Cluster Template using OpenStack Provider
+# This creates a production-ready RKE2 cluster on OpenStack
+
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: rke2-production-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+    managed-by: capi
+spec:
+  # Cluster network configuration
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: "cluster.local"
+  
+  # Control plane configuration
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: RKE2ControlPlane
+    name: rke2-production-cluster-control-plane
+  
+  # Infrastructure configuration
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: OpenStackCluster
+    name: rke2-production-cluster
+
+---
+# OpenStack Cluster
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: rke2-production-cluster
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # OpenStack configuration
+  cloudName: "production"
+  cloudSecretName: "openstack-credentials"
+  
+  # Network configuration
+  managedSecurityGroups: false
+  disablePortSecurity: false
+  
+  # Load balancer configuration
+  loadBalancer:
+    enabled: true
+    provider: "octavia"
+    method: "ROUND_ROBIN"
+    methodVipSubnet: "public"
+  
+  # Tags
+  tags:
+    - "cluster-api-provider-openstack"
+    - "rke2"
+    - "production"
+
+---
+# RKE2 Control Plane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: RKE2ControlPlane
+metadata:
+  name: rke2-production-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of control plane replicas
+  replicas: 1
+  
+  # RKE2 version
+  version: "v1.28.5+rke2r1"
+  
+  # RKE2 server configuration
+  serverConfig:
+    # TLS configuration
+    tls-san:
+      - "rke2-production.example.com"
+      - "10.0.0.100"  # Load balancer IP
+    
+    # Network configuration
+    cluster-cidr: "10.244.0.0/16"
+    service-cidr: "10.96.0.0/12"
+    
+    # API server configuration
+    kube-apiserver-arg:
+      - "enable-admission-plugins=NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
+      - "audit-log-maxage=30"
+      - "audit-log-maxbackup=3"
+      - "audit-log-maxsize=100"
+      - "audit-log-path=/var/log/audit.log"
+    
+    # Controller manager configuration
+    kube-controller-manager-arg:
+      - "bind-address=0.0.0.0"
+      - "cluster-cidr=10.244.0.0/16"
+      - "service-cluster-ip-range=10.96.0.0/12"
+    
+    # Scheduler configuration
+    kube-scheduler-arg:
+      - "bind-address=0.0.0.0"
+    
+    # Etcd configuration
+    etcd-arg:
+      - "listen-metrics-urls=http://0.0.0.0:2381"
+  
+  # Machine template
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: OpenStackMachineTemplate
+      name: rke2-production-cluster-control-plane
+
+---
+# OpenStack Machine Template for Control Plane
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rke2-production-cluster-control-plane
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster-control-plane
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.large"
+      image: "ubuntu-22.04"
+      sshKeyName: "rke2-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rke2-control-plane"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rke2-control-plane-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "control-plane"
+        - "production"
+
+---
+# Machine Deployment for Worker Nodes
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: rke2-production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  # Number of worker nodes
+  replicas: 3
+  
+  # Cluster reference
+  clusterName: rke2-production-cluster
+  
+  # Machine template
+  template:
+    spec:
+      # Bootstrap configuration
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: RKE2ConfigTemplate
+          name: rke2-production-cluster-workers
+      
+      # Infrastructure configuration
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: OpenStackMachineTemplate
+        name: rke2-production-cluster-workers
+      
+      # Kubernetes version
+      version: "v1.28.5+rke2r1"
+
+---
+# RKE2 Config Template for Workers
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: RKE2ConfigTemplate
+metadata:
+  name: rke2-production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # RKE2 agent configuration
+      agentConfig:
+        # Node configuration
+        node-name: "worker-${CLUSTER_NAME}-${MACHINE_NAME}"
+        
+        # Network configuration
+        cluster-cidr: "10.244.0.0/16"
+        service-cidr: "10.96.0.0/12"
+        
+        # Kubelet configuration
+        kubelet-arg:
+          - "cgroup-driver=systemd"
+          - "eviction-hard=nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%"
+
+---
+# OpenStack Machine Template for Workers
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: rke2-production-cluster-workers
+  namespace: default
+  labels:
+    app.kubernetes.io/name: rke2-production-cluster-workers
+    app.kubernetes.io/managed-by: flux
+    environment: production
+spec:
+  template:
+    spec:
+      # VM configuration
+      flavor: "m1.medium"
+      image: "ubuntu-22.04"
+      sshKeyName: "rke2-key"
+      
+      # Network configuration
+      ports:
+        - network:
+            name: "private"
+          securityGroups:
+            - name: "rke2-worker"
+      
+      # User data for RKE2 installation
+      userDataSecret:
+        name: rke2-worker-user-data
+      
+      # Tags
+      tags:
+        - "rke2"
+        - "worker"
+        - "production"
