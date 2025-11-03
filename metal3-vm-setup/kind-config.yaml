@@ -1,0 +1,75 @@
+# Kind Cluster Configuration for Metal3 Management
+# Multi-node cluster with proper networking and storage
+# Optimized for macOS with Docker Desktop/Rancher Desktop
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Cluster name
+name: metal3-management
+
+# Network configuration
+networking:
+  # API server address
+  # Set to "0.0.0.0" to allow access from external Rancher cluster
+  # This is required when Rancher/Turtles/Metal3 run on a separate cluster
+  apiServerAddress: "0.0.0.0"  # Exposed for external Rancher cluster access
+  apiServerPort: 6443
+  
+  # Pod subnet
+  podSubnet: "10.244.0.0/16"
+  
+  # Service subnet
+  serviceSubnet: "10.96.0.0/12"
+  
+  # Use default CNI (kindnet)
+  disableDefaultCNI: false
+
+# Node configuration
+nodes:
+  # Control plane node
+  - role: control-plane
+    image: kindest/node:v1.27.3
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            service-node-port-range: "30000-32767"
+        networking:
+          podSubnet: "10.244.0.0/16"
+          serviceSubnet: "10.96.0.0/12"
+    extraPortMappings:
+      # HTTP ingress (use 8080 if 80 is taken on Mac)
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      # HTTPS ingress (use 8443 if 443 is taken on Mac)
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+      # Metal3 Ironic API
+      - containerPort: 6385
+        hostPort: 6385
+        protocol: TCP
+      # Metal3 Ironic Inspector
+      - containerPort: 5050
+        hostPort: 5050
+        protocol: TCP
+      # Kubernetes API (exposed for external Rancher cluster access)
+      - containerPort: 6443
+        hostPort: 6443
+        protocol: TCP
+  # Worker nodes
+  - role: worker
+    image: kindest/node:v1.27.3
+
+  - role: worker
+    image: kindest/node:v1.27.3
+
+

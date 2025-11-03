@@ -1,0 +1,28 @@
+# Redfish Simulator Dockerfile
+# A lightweight Redfish API simulator for Metal3 bare metal provisioning testing
+
+FROM python:3.11-slim
+
+LABEL maintainer="Metal3 Project"
+LABEL description="Redfish API Simulator for Metal3 testing"
+LABEL version="1.0.0"
+
+# Create app directory
+WORKDIR /app
+
+# Copy simulator script
+COPY redfish-simulator.py /app/redfish-simulator.py
+
+# Make script executable
+RUN chmod +x /app/redfish-simulator.py
+
+# Expose default port (can be overridden via PORT env var)
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/redfish/v1/')" || exit 1
+
+# Run the simulator
+CMD ["python3", "/app/redfish-simulator.py"]
+

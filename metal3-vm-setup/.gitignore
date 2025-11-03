@@ -1,0 +1,14 @@
+# Kubeconfig files
+*.kubeconfig
+*.yaml.kubeconfig
+/tmp/*-kubeconfig.yaml
+
+# Temporary files
+*.tmp
+*.log
+
+# SSH keys (if accidentally copied)
+*.pem
+id_rsa*
+*.key
+
