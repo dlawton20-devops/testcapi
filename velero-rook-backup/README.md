@@ -19,18 +19,57 @@ Velero is a backup and disaster recovery solution for Kubernetes. This setup ena
 
 ## Architecture
 
+### ⚠️ IMPORTANT: Velero Installation Location
+
+**Velero MUST be installed on the SAME cluster you want to backup.**
+
+Velero needs to:
+- Access the Kubernetes API to discover resources
+- Access pods to backup volumes via Restic
+- Access PVCs, ConfigMaps, Secrets, and other resources
+
+The backup storage (S3/MinIO) can be anywhere, as long as it's accessible from the cluster.
+
+### Single Cluster Architecture
+
 ```
-Source Cluster (Rook Ceph)          Destination Cluster
-┌─────────────────────┐             ┌─────────────────────┐
-│  Rook Ceph Cluster  │             │   Velero Server     │
-│  - CephFS           │  ────────►  │   - Backup Storage  │
-│  - RBD              │   Backup    │   - Restore Engine  │
-│  - PVCs             │             │                     │
-└─────────────────────┘             └─────────────────────┘
-         │                                    │
-         └──────────► Object Storage ◄────────┘
-                      (S3/GCS/Azure)
+┌─────────────────────────────────────┐
+│     Kubernetes Cluster              │
+│  ┌───────────────────────────────┐  │
+│  │  Rook Ceph                   │  │
+│  │  - CephFS                    │  │
+│  │  - RBD                       │  │
+│  │  - PVCs                      │  │
+│  └───────────────────────────────┘  │
+│  ┌───────────────────────────────┐  │
+│  │  Velero Server               │  │
+│  │  - Backup Controller         │  │
+│  │  - Restic Daemonset          │  │
+│  └───────────────────────────────┘  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+      ┌─────────────────┐
+      │  Object Storage │
+      │  (S3/MinIO)     │
+      └─────────────────┘
 ```
+
+### Multi-Cluster Architecture (Rancher)
+
+For Rancher environments with multiple clusters:
+
+```
+Rancher Management Cluster
+    │
+    ├─── Cluster A (Rook Ceph) ──── Velero A ────┐
+    ├─── Cluster B (Rook Ceph) ──── Velero B ────┼──► MinIO
+    └─── Cluster C ───────────────── Velero C ────┘     (Shared)
+```
+
+**Each cluster needs its own Velero installation**, but they can all use the same MinIO instance with different buckets.
+
+**For on-prem Rancher with MinIO, see:** [RANCHER-ONPREM-MINIO.md](RANCHER-ONPREM-MINIO.md)
 
 ## Installation
 

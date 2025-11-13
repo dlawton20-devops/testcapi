@@ -2,11 +2,24 @@
 
 This guide provides step-by-step instructions for manually installing Velero for Rook Ceph backups, with both CLI and Helm methods.
 
+## ⚠️ Important: Where to Install Velero
+
+**Velero MUST be installed on the SAME cluster you want to backup.**
+
+- Velero needs Kubernetes API access to discover resources
+- Velero needs pod access to backup volumes via Restic
+- Velero needs to access PVCs, ConfigMaps, Secrets, etc.
+
+The backup storage (S3/MinIO) can be anywhere, as long as it's accessible from the cluster.
+
+**For Rancher multi-cluster setups:** Install Velero on EACH cluster you want to backup. See [RANCHER-ONPREM-MINIO.md](RANCHER-ONPREM-MINIO.md) for detailed instructions.
+
 ## Prerequisites
 
 Before starting, ensure you have:
 
 - [ ] Kubernetes cluster access with `kubectl` configured
+- [ ] **kubectl context set to the cluster you want to backup**
 - [ ] Cluster admin permissions
 - [ ] Object storage backend (S3, MinIO, Azure, GCS) configured
 - [ ] Object storage credentials ready
@@ -95,7 +108,10 @@ velero install \
 
 #### Option B: MinIO Backend
 
+**Important for MinIO:** You need to specify the MinIO endpoint. If MinIO is in the same cluster, use the service endpoint. If MinIO is external, use the external endpoint.
+
 ```bash
+# If MinIO is in the same cluster
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.8.0 \
@@ -103,10 +119,20 @@ velero install \
   --secret-file ./credentials-velero \
   --use-volume-snapshots=false \
   --use-restic \
-  --backup-location-config region=minio,s3ForcePathStyle=true
+  --backup-location-config region=minio,s3ForcePathStyle=true,s3Url=http://minio.minio.svc.cluster.local:9000
+
+# If MinIO is external
+velero install \
+  --provider aws \
+  --plugins velero/velero-plugin-for-aws:v1.8.0 \
+  --bucket velero \
+  --secret-file ./credentials-velero \
+  --use-volume-snapshots=false \
+  --use-restic \
+  --backup-location-config region=minio,s3ForcePathStyle=true,s3Url=http://<minio-external-ip>:9000
 ```
 
-**Note:** For MinIO, you'll need to set the endpoint. Create a BackupStorageLocation after installation (see Step 6).
+**Note:** After installation, verify the BackupStorageLocation (see Step 6). You may need to update it with the correct endpoint.
 
 #### Option C: Azure Blob Storage
 
@@ -174,8 +200,10 @@ EOF
 ```
 
 **For MinIO:**
+
+If MinIO is in the same cluster:
 ```bash
-# First, get your MinIO service endpoint
+# Get MinIO service endpoint
 MINIO_ENDPOINT=$(kubectl get svc minio -n minio -o jsonpath='{.spec.clusterIP}')
 
 kubectl apply -f - <<EOF
@@ -194,6 +222,28 @@ spec:
     s3Url: http://${MINIO_ENDPOINT}:9000
 EOF
 ```
+
+If MinIO is external or in a different cluster:
+```bash
+# Use external endpoint (IP, hostname, or service endpoint from another cluster)
+kubectl apply -f - <<EOF
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: velero
+spec:
+  provider: aws
+  objectStorage:
+    bucket: velero
+  config:
+    region: minio
+    s3ForcePathStyle: "true"
+    s3Url: http://<minio-external-endpoint>:9000
+EOF
+```
+
+**For Rancher multi-cluster:** If MinIO is in the management cluster and you're installing Velero on a downstream cluster, use the external endpoint (NodePort, LoadBalancer, or Ingress). See [RANCHER-ONPREM-MINIO.md](RANCHER-ONPREM-MINIO.md) for details.
 
 ### Step 7: Verify Backup Storage Location
 
@@ -280,6 +330,8 @@ helm install velero vmware-tanzu/velero \
 ```
 
 **For MinIO:**
+
+If MinIO is in the same cluster:
 ```bash
 helm install velero vmware-tanzu/velero \
   --namespace velero \
@@ -288,12 +340,32 @@ helm install velero vmware-tanzu/velero \
   --set configuration.backupStorageLocation.bucket=velero \
   --set configuration.backupStorageLocation.config.region=minio \
   --set configuration.backupStorageLocation.config.s3ForcePathStyle=true \
+  --set configuration.backupStorageLocation.config.s3Url=http://minio.minio.svc.cluster.local:9000 \
   --set initContainers[0].name=velero-plugin-for-aws \
   --set initContainers[0].image=velero/velero-plugin-for-aws:v1.8.0 \
   --set initContainers[0].volumeMounts[0].mountPath=/target \
   --set initContainers[0].volumeMounts[0].name=plugins \
   --set configuration.restic.enabled=true
 ```
+
+If MinIO is external or in a different cluster:
+```bash
+helm install velero vmware-tanzu/velero \
+  --namespace velero \
+  --set-file credentials.secretContents.cloud=./credentials-velero \
+  --set configuration.provider=aws \
+  --set configuration.backupStorageLocation.bucket=velero \
+  --set configuration.backupStorageLocation.config.region=minio \
+  --set configuration.backupStorageLocation.config.s3ForcePathStyle=true \
+  --set configuration.backupStorageLocation.config.s3Url=http://<minio-external-endpoint>:9000 \
+  --set initContainers[0].name=velero-plugin-for-aws \
+  --set initContainers[0].image=velero/velero-plugin-for-aws:v1.8.0 \
+  --set initContainers[0].volumeMounts[0].mountPath=/target \
+  --set initContainers[0].volumeMounts[0].name=plugins \
+  --set configuration.restic.enabled=true
+```
+
+**For Rancher multi-cluster:** See [RANCHER-ONPREM-MINIO.md](RANCHER-ONPREM-MINIO.md) for detailed instructions on using MinIO from the management cluster with downstream clusters.
 
 ### Step 5: Verify Helm Installation
 

@@ -2,13 +2,24 @@
 
 This guide provides a quick start for backing up your Rook Ceph storage cluster using Velero.
 
+## ⚠️ Important: Installation Location
+
+**Velero MUST be installed on the SAME cluster you want to backup.**
+
+- Velero needs Kubernetes API access to discover resources
+- Velero needs pod access to backup volumes via Restic
+- The backup storage (S3/MinIO) can be anywhere, as long as it's accessible
+
+**For Rancher multi-cluster:** Install Velero on EACH cluster you want to backup. See [RANCHER-ONPREM-MINIO.md](RANCHER-ONPREM-MINIO.md) for details.
+
 ## Prerequisites Checklist
 
 - [ ] Kubernetes cluster with kubectl access
+- [ ] **kubectl context set to the cluster you want to backup**
 - [ ] Helm 3.x installed
 - [ ] Rook Ceph cluster running
 - [ ] Object storage backend (S3, MinIO, etc.) configured
-- [ ] Access to both source and destination clusters (if cross-cluster)
+- [ ] Object storage accessible from the cluster
 
 ## Quick Installation (5 minutes)
 
