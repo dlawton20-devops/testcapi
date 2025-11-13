@@ -1,0 +1,118 @@
+# Scheduled Backups for Rook Ceph
+# These schedules automate regular backups
+
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-pvcs-daily
+  namespace: velero
+spec:
+  # Schedule using cron expression
+  # Format: minute hour day month weekday
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  
+  # Template for backup spec
+  template:
+    includedNamespaces:
+      - rook-ceph
+      - default
+    
+    includedResources:
+      - persistentvolumeclaims
+      - persistentvolumes
+    
+    labelSelector:
+      matchExpressions:
+        - key: volume.beta.kubernetes.io/storage-class
+          operator: In
+          values:
+            - rook-ceph-block
+            - rook-cephfs
+    
+    defaultVolumesToRestic: true
+    snapshotVolumes: false
+    includeClusterResources: false
+    storageLocation: default
+    ttl: 720h  # 30 days retention
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-cephfs-daily
+  namespace: velero
+spec:
+  schedule: "0 3 * * *"  # Daily at 3 AM
+  template:
+    includedNamespaces:
+      - default
+    
+    includedResources:
+      - persistentvolumeclaims
+      - pods
+    
+    labelSelector:
+      matchExpressions:
+        - key: volume.beta.kubernetes.io/storage-class
+          operator: In
+          values:
+            - rook-cephfs
+            - cephfs
+    
+    defaultVolumesToRestic: true
+    includeClusterResources: false
+    storageLocation: default
+    ttl: 720h
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-full-weekly
+  namespace: velero
+spec:
+  schedule: "0 1 * * 0"  # Weekly on Sunday at 1 AM
+  template:
+    includedNamespaces:
+      - rook-ceph
+      - default
+    
+    includedResources:
+      - '*'
+    
+    includeClusterResources: true
+    defaultVolumesToRestic: true
+    storageLocation: default
+    ttl: 2160h  # 90 days retention for full backups
+    
+    metadata:
+      labels:
+        backup-type: full
+        storage-provider: rook-ceph
+
+---
+# Hourly backup for critical data
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-critical-hourly
+  namespace: velero
+spec:
+  schedule: "0 * * * *"  # Every hour
+  template:
+    includedNamespaces:
+      - production  # Adjust to your critical namespace
+    
+    includedResources:
+      - persistentvolumeclaims
+      - persistentvolumes
+    
+    labelSelector:
+      matchLabels:
+        backup-priority: critical
+    
+    defaultVolumesToRestic: true
+    includeClusterResources: false
+    storageLocation: default
+    ttl: 168h  # 7 days retention for hourly backups
+

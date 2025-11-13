@@ -1,0 +1,169 @@
+# Velero Backup Configuration for CephFS Layer
+# This configuration backs up CephFS filesystem data
+
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-cephfs-backup
+  namespace: velero
+  labels:
+    app: rook-ceph
+    backup-type: cephfs
+spec:
+  # Include CephFS-related resources
+  includedNamespaces:
+    - rook-ceph  # Rook Ceph operator namespace
+    - default    # Namespaces with CephFS PVCs
+  
+  # Include CephFS-specific resources
+  includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    - pods
+    - cephfilesystems.ceph.rook.io
+    - cephfilesystemsubpools.ceph.rook.io
+    - cephclients.ceph.rook.io
+  
+  # Label selector for CephFS PVCs
+  labelSelector:
+    matchExpressions:
+      - key: volume.beta.kubernetes.io/storage-class
+        operator: In
+        values:
+          - rook-cephfs
+          - cephfs
+  
+  # Use Restic for CephFS file-level backup
+  defaultVolumesToRestic: true
+  
+  # Include cluster-scoped resources (CephFS CRDs)
+  includeClusterResources: true
+  
+  storageLocation: default
+  ttl: 720h
+  
+  # Metadata
+  metadata:
+    labels:
+      backup-type: cephfs
+      storage-provider: rook-ceph
+      filesystem-type: cephfs
+
+---
+# Backup CephFS using a pod with mounted CephFS volume
+# This approach backs up the actual filesystem data
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-cephfs-data-backup
+  namespace: velero
+spec:
+  # Include namespace where CephFS is mounted
+  includedNamespaces:
+    - default  # Change to your namespace
+  
+  # Include pods with CephFS volumes
+  includedResources:
+    - pods
+    - persistentvolumeclaims
+  
+  # Select pods with CephFS volumes
+  labelSelector:
+    matchExpressions:
+      - key: app
+        operator: Exists
+  
+  # Use Restic to backup mounted volumes
+  defaultVolumesToRestic: true
+  
+  # Backup hooks to ensure data consistency
+  hooks:
+    resources:
+      - name: cephfs-backup-hook
+        includedNamespaces:
+          - default
+        labelSelector:
+          matchLabels:
+            app: my-app
+        pre:
+          - exec:
+              container: app-container
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Flush filesystem buffers
+                  sync
+                  # Optional: Stop application gracefully
+                  # kill -SIGTERM 1
+              onError: Continue
+              timeout: 30s
+        post:
+          - exec:
+              container: app-container
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Resume application if stopped
+                  echo "Backup completed"
+              onError: Continue
+              timeout: 30s
+  
+  storageLocation: default
+  ttl: 720h
+
+---
+# Backup entire Rook Ceph cluster configuration and CephFS
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-full-backup
+  namespace: velero
+spec:
+  includedNamespaces:
+    - rook-ceph
+    - rook-ceph-system  # If using separate system namespace
+    - default
+  
+  includedResources:
+    - '*'  # All resources
+  
+  # Include Rook Ceph CRDs
+  includeClusterResources: true
+  
+  # Rook Ceph specific resources
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephfilesystemsubpools.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+    - cephobjectstoreusers.ceph.rook.io
+    - cephclients.ceph.rook.io
+    - cephobjectrealms.ceph.rook.io
+    - cephobjectzonegroups.ceph.rook.io
+    - cephobjectzones.ceph.rook.io
+    - cephrbdmirrors.ceph.rook.io
+    - cephnfses.ceph.rook.io
+    - persistentvolumeclaims
+    - persistentvolumes
+    - pods
+    - deployments
+    - statefulsets
+    - services
+    - configmaps
+    - secrets
+  
+  # Use Restic for all volumes
+  defaultVolumesToRestic: true
+  
+  storageLocation: default
+  ttl: 168h  # 7 days for full backups
+  
+  metadata:
+    labels:
+      backup-type: full
+      storage-provider: rook-ceph
+      includes-cephfs: "true"
+

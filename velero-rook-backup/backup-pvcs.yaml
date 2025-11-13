@@ -1,0 +1,138 @@
+# Velero Backup Configuration for Rook Ceph PVCs
+# This backup uses Restic for file-level backup of PVCs
+
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-pvcs-backup
+  namespace: velero
+  labels:
+    app: rook-ceph
+    backup-type: pvc
+spec:
+  # Include specific namespaces
+  includedNamespaces:
+    - rook-ceph
+    - default  # Add namespaces where your PVCs are used
+  
+  # Include specific resources
+  includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    - pods
+    - deployments
+    - statefulsets
+  
+  # Exclude resources that don't need backup
+  excludedResources:
+    - events
+    - events.events.k8s.io
+  
+  # Label selector to include only Rook Ceph PVCs
+  labelSelector:
+    matchLabels:
+      app: rook-ceph
+    # Or match by storage class
+    # matchExpressions:
+    #   - key: volume.beta.kubernetes.io/storage-class
+    #     operator: In
+    #     values:
+    #       - rook-ceph-block
+    #       - rook-cephfs
+  
+  # Use Restic for file-level backup
+  defaultVolumesToRestic: true
+  
+  # Or specify volumes explicitly
+  # volumeBackupPolicy:
+  #   default: restic
+  
+  # Snapshot volumes (if CSI snapshots are supported)
+  snapshotVolumes: false  # Set to true if using CSI snapshots
+  
+  # Include cluster-scoped resources
+  includeClusterResources: false
+  
+  # Storage location
+  storageLocation: default
+  
+  # Volume snapshot location (if using snapshots)
+  # volumeSnapshotLocations:
+  #   - default
+  
+  # TTL for backup retention
+  ttl: 720h  # 30 days
+  
+  # Hooks (optional)
+  hooks: {}
+  
+  # Metadata
+  metadata:
+    labels:
+      backup-type: pvc
+      storage-provider: rook-ceph
+      created-by: manual
+
+---
+# Alternative: Backup specific PVCs by name
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-specific-pvcs
+  namespace: velero
+spec:
+  includedNamespaces:
+    - '*'  # All namespaces
+  
+  includedResources:
+    - persistentvolumeclaims
+  
+  # Use label selector or annotation selector
+  labelSelector:
+    matchLabels:
+      app: my-app
+      storage: rook-ceph
+  
+  # Or use annotation selector
+  # orLabelSelectors:
+  #   - matchExpressions:
+  #       - key: backup.velero.io/backup
+  #         operator: In
+  #         values:
+  #           - "true"
+  
+  defaultVolumesToRestic: true
+  snapshotVolumes: false
+  includeClusterResources: false
+  storageLocation: default
+  ttl: 720h
+
+---
+# Backup with CSI Volume Snapshots (if supported)
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-pvcs-csi-snapshot
+  namespace: velero
+spec:
+  includedNamespaces:
+    - rook-ceph
+    - default
+  
+  includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+  
+  # Enable CSI snapshots
+  snapshotVolumes: true
+  
+  # Volume snapshot location
+  volumeSnapshotLocations:
+    - default
+  
+  # Still use Restic for volumes without snapshot support
+  defaultVolumesToRestic: true
+  
+  storageLocation: default
+  ttl: 720h
+

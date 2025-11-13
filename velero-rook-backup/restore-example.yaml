@@ -1,0 +1,128 @@
+# Velero Restore Examples
+# Use these to restore backups to another cluster
+
+---
+# Restore PVCs from backup
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-rook-ceph-pvcs
+  namespace: velero
+spec:
+  # Backup to restore from
+  backupName: rook-ceph-pvcs-backup
+  
+  # Include specific namespaces
+  includedNamespaces:
+    - default
+  
+  # Include specific resources
+  includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    - pods
+    - deployments
+    - statefulsets
+  
+  # Namespace mapping (if restoring to different namespace)
+  namespaceMapping:
+    default: restored-default
+  
+  # Include cluster-scoped resources
+  includeClusterResources: false
+  
+  # Restore strategy
+  restorePVs: true
+  
+  # Label selector
+  labelSelector:
+    matchLabels:
+      app: rook-ceph
+  
+  # Hooks (optional)
+  hooks: {}
+
+---
+# Restore CephFS data
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-rook-ceph-cephfs
+  namespace: velero
+spec:
+  backupName: rook-ceph-cephfs-backup
+  
+  includedNamespaces:
+    - default
+  
+  includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    - pods
+  
+  # For CephFS, ensure storage class mapping
+  # Note: You may need to adjust storage class names
+  restorePVs: true
+  
+  # Exclude resources that shouldn't be restored
+  excludedResources:
+    - nodes
+    - events
+    - events.events.k8s.io
+
+---
+# Full restore of Rook Ceph cluster
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-rook-ceph-full
+  namespace: velero
+spec:
+  backupName: rook-ceph-full-backup
+  
+  includedNamespaces:
+    - rook-ceph
+    - default
+  
+  includedResources:
+    - '*'
+  
+  includeClusterResources: true
+  
+  restorePVs: true
+  
+  # Exclude problematic resources
+  excludedResources:
+    - nodes
+    - events
+    - events.events.k8s.io
+    - apiservices
+    - certificatesigningrequests
+
+---
+# Selective restore with filters
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-selective
+  namespace: velero
+spec:
+  backupName: rook-ceph-pvcs-backup
+  
+  includedNamespaces:
+    - default
+  
+  # Restore only specific resources
+  includedResources:
+    - persistentvolumeclaims
+  
+  # Use label selector to restore only specific PVCs
+  labelSelector:
+    matchLabels:
+      app: my-app
+  
+  restorePVs: true
+  
+  # Orphan resources that don't exist in backup
+  # orphanedResourcePolicy: none  # Options: none, warn, skip
+
