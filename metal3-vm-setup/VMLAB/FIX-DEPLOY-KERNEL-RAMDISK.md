@@ -6,6 +6,8 @@ This guide helps you fix the error about missing `deploy_kernel` and `deploy_ram
 
 **Ironic needs deploy kernel and ramdisk images to provision nodes.** These are typically downloaded automatically, but if missing, you need to configure Ironic to download them or provide them manually.
 
+**Important**: Deploy kernel/ramdisk are generally **OS-agnostic** - they're used to boot nodes during provisioning and should work with any target OS (Ubuntu, CentOS, etc.). However, for best compatibility, use **Metal3 ironic-image releases** which are designed to be OS-agnostic.
+
 ## 🔍 What Are deploy_kernel and deploy_ramdisk?
 
 These are special boot images that Ironic uses during provisioning:
@@ -32,59 +34,98 @@ kubectl logs -n metal3-system -l app.kubernetes.io/name=metal3-ironic | grep -i 
 # - "No deploy ramdisk available"
 ```
 
-## ✅ Solution 1: Configure Ironic to Download Images (Recommended)
+## ✅ Solution 1: Configure Ironic via Helm (For Helm-Managed Metal3)
 
-Ironic can automatically download deploy kernel and ramdisk from upstream sources. Configure it:
+If Metal3 is installed via Helm (e.g., `metal3-303.0.16+up0.12.6`), Ironic configuration is managed through Helm values, not a standalone ConfigMap.
 
-### Step 1: Check Ironic Configuration
+### Step 1: Check Helm Release
 
 ```bash
-# Check Ironic ConfigMap
+# Find the Metal3 Helm release
+helm list -n metal3-system
+
+# Get current Helm values
+helm get values <release-name> -n metal3-system > current-values.yaml
+
+# Check Ironic configuration in Helm values
+helm get values <release-name> -n metal3-system | grep -i "ironic\|deploy\|kernel\|ramdisk"
+```
+
+### Step 2: Update Helm Values
+
+**For Ubuntu (or any OS) - Use OpenStack tarballs (Recommended - Known to work):**
+
+```bash
+# Create or update values file
+# Note: OpenStack tarballs are OS-agnostic and work with Ubuntu
+cat > ironic-values.yaml <<EOF
+ironic:
+  config:
+    deploy:
+      default_boot_interface: ipxe
+      default_deploy_interface: direct
+    pxe:
+      # OpenStack tarballs (OS-agnostic, works with Ubuntu)
+      deploy_kernel: http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.kernel
+      deploy_ramdisk: http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.initramfs
+EOF
+```
+
+**Alternative - Metal3 ironic-image (if available):**
+
+```bash
+# Check actual releases at: https://github.com/metal3-io/ironic-image/releases
+# Download the actual files and serve them via HTTP (see Solution 2)
+# Then use your HTTP server URLs:
+cat > ironic-values.yaml <<EOF
+ironic:
+  config:
+    deploy:
+      default_boot_interface: ipxe
+      default_deploy_interface: direct
+    pxe:
+      deploy_kernel: http://${VM_IP}:8080/deploy/deploy_kernel
+      deploy_ramdisk: http://${VM_IP}:8080/deploy/deploy_ramdisk
+EOF
+```
+
+
+# Upgrade Helm release with new values
+helm upgrade <release-name> <chart-name> -n metal3-system -f ironic-values.yaml
+
+# Or merge with existing values
+helm upgrade <release-name> <chart-name> -n metal3-system \
+  --reuse-values \
+  -f ironic-values.yaml
+```
+
+**Note**: The exact Helm values structure depends on your Metal3 Helm chart version. Check the chart's `values.yaml` for the correct structure.
+
+### Step 3: Alternative - Check Ironic ConfigMap (If Managed by Helm)
+
+Even with Helm, Ironic configuration might be in a ConfigMap created by Helm:
+
+```bash
+# Check for Ironic ConfigMaps
 kubectl get configmap -n metal3-system | grep ironic
 
-# Check Ironic configuration
-kubectl get configmap ironic-config -n metal3-system -o yaml | grep -i "deploy\|kernel\|ramdisk"
+# Check if Helm manages the ConfigMap
+kubectl get configmap <ironic-configmap-name> -n metal3-system -o yaml | \
+  grep -A 5 "helm.sh\|app.kubernetes.io/managed-by"
+
+# If Helm-managed, update via Helm values (see Step 2)
+# If not Helm-managed, you can edit directly (see Solution 1B below)
 ```
 
-### Step 2: Update Ironic Configuration
+### Step 4: Use Ironic's Built-in Image Service (Recommended)
 
-```bash
-# Edit Ironic ConfigMap
-kubectl edit configmap ironic-config -n metal3-system
+Ironic should automatically download deploy images. If it's not working, check Ironic image service configuration in Helm values.
 
-# Add or update these settings:
-```
+**Ironic should automatically download images from:**
+- `http://tarballs.openstack.org/ironic-python-agent/`
+- Or configured image service URLs
 
-**Add to Ironic ConfigMap:**
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ironic-config
-  namespace: metal3-system
-data:
-  ironic.conf: |
-    [deploy]
-    # Deploy kernel and ramdisk download URLs
-    default_boot_interface = ipxe
-    default_deploy_interface = direct
-    
-    [pxe]
-    # iPXE boot configuration
-    ipxe_boot_script = /etc/ironic/ipxe_boot_script
-    
-    [image_download_source]
-    # Where to download deploy images from
-    deploy_kernel = http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.kernel
-    deploy_ramdisk = http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.initramfs
-```
-
-**However, the better approach is to use Ironic's built-in image service.**
-
-### Step 3: Use Ironic Image Service (Better Approach)
-
-Ironic should automatically use its image service. Check if it's configured:
+**To verify Ironic is configured correctly:**
 
 ```bash
 # Check Ironic deployment
@@ -95,30 +136,47 @@ kubectl get pod -n metal3-system -l app.kubernetes.io/name=metal3-ironic -o yaml
   grep -i "deploy\|kernel\|ramdisk\|image"
 ```
 
-**Ironic should automatically download images from:**
-- `http://tarballs.openstack.org/ironic-python-agent/`
-- Or configured image service URLs
-
 ## ✅ Solution 2: Manually Download and Serve Images
 
 If automatic download isn't working, manually download and serve the images:
 
 ### Step 1: Download Deploy Images
 
+**Option 1: OpenStack Tarballs (Recommended - Known to work with Ubuntu):**
+
 ```bash
 # On a machine with internet access
-# Download deploy kernel and ramdisk
-
-# Option 1: Download from OpenStack tarballs
+# Download from OpenStack tarballs (OS-agnostic, works with Ubuntu)
+# These are the most reliable and widely used
 wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.kernel
 wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.initramfs
-
-# Option 2: Download from Metal3 releases
-# Check: https://github.com/metal3-io/ironic-image/releases
-# Or use latest stable:
-wget https://github.com/metal3-io/ironic-image/releases/download/v1.2.0/ironic-python-agent.kernel
-wget https://github.com/metal3-io/ironic-image/releases/download/v1.2.0/ironic-python-agent.initramfs
 ```
+
+**Option 2: Metal3 ironic-image (If available):**
+
+```bash
+# Check actual releases at: https://github.com/metal3-io/ironic-image/releases
+# Download the actual files from the releases page
+# The file names and structure may vary by release
+# Example (verify the actual file names on the releases page):
+# Visit: https://github.com/metal3-io/ironic-image/releases
+# Download the kernel and initramfs files from the latest release
+# Then serve them via HTTP (see Step 2)
+```
+
+**Option 3: Build Your Own (Advanced):**
+
+```bash
+# If you need custom deploy images, you can build them using diskimage-builder
+# This is more complex but gives you full control
+# See: https://docs.openstack.org/ironic-python-agent/latest/admin/dib.html
+```
+
+**Why OpenStack tarballs work well:**
+- ✅ OS-agnostic design (despite "centos8" in name)
+- ✅ Widely tested and used
+- ✅ Reliable download URLs
+- ✅ Work with Ubuntu, CentOS, and other Linux distributions
 
 ### Step 2: Serve Images via HTTP
 
@@ -143,8 +201,28 @@ python3 -m http.server 8080
 
 ### Step 3: Configure Ironic to Use These URLs
 
+**If using Helm:**
+
 ```bash
-# Update Ironic ConfigMap
+# Update Helm values
+cat > deploy-images-values.yaml <<EOF
+ironic:
+  config:
+    pxe:
+      deploy_kernel: http://${VM_IP}:8080/deploy/deploy_kernel
+      deploy_ramdisk: http://${VM_IP}:8080/deploy/deploy_ramdisk
+EOF
+
+# Upgrade Helm release
+helm upgrade <release-name> <chart-name> -n metal3-system \
+  --reuse-values \
+  -f deploy-images-values.yaml
+```
+
+**If NOT using Helm (standalone ConfigMap):**
+
+```bash
+# Update Ironic ConfigMap directly
 kubectl edit configmap ironic-config -n metal3-system
 
 # Add:
@@ -237,6 +315,23 @@ kubectl logs -n metal3-system -l app.kubernetes.io/name=metal3-ironic | \
 
 ### Step 2: Check Ironic Configuration
 
+**If using Helm:**
+
+```bash
+# Check Helm release
+helm list -n metal3-system
+
+# Get current Helm values
+helm get values <release-name> -n metal3-system | grep -i "ironic\|deploy\|kernel\|ramdisk"
+
+# Check Ironic ConfigMap (may be Helm-managed)
+kubectl get configmap -n metal3-system | grep ironic
+kubectl get configmap <ironic-configmap-name> -n metal3-system -o yaml | \
+  grep -i "deploy\|kernel\|ramdisk"
+```
+
+**If NOT using Helm:**
+
 ```bash
 # Get Ironic ConfigMap
 kubectl get configmap ironic-config -n metal3-system -o yaml
@@ -301,13 +396,13 @@ If automatic download isn't working, here's a complete manual setup:
 mkdir -p /tmp/deploy-images
 cd /tmp/deploy-images
 
-# Download from Metal3 releases (recommended)
-wget https://github.com/metal3-io/ironic-image/releases/download/v1.2.0/ironic-python-agent.kernel
-wget https://github.com/metal3-io/ironic-image/releases/download/v1.2.0/ironic-python-agent.initramfs
+# Download from OpenStack tarballs (recommended - reliable URLs)
+wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.kernel
+wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.initramfs
 
-# Or from OpenStack tarballs
-# wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.kernel
-# wget http://tarballs.openstack.org/ironic-python-agent/dib/files/ipa-centos8-stable-wallaby.initramfs
+# Alternative: Check Metal3 ironic-image releases
+# Visit: https://github.com/metal3-io/ironic-image/releases
+# Download the actual files from the releases page (file names may vary)
 ```
 
 ### Step 2: Copy to Image Server
@@ -317,12 +412,13 @@ wget https://github.com/metal3-io/ironic-image/releases/download/v1.2.0/ironic-p
 sudo mkdir -p /opt/metal3-dev-env/ironic/html/images/deploy
 
 # Copy images (from your download machine)
-scp /tmp/deploy-images/ironic-python-agent.kernel ubuntu@${VM_IP}:/opt/metal3-dev-env/ironic/html/images/deploy/deploy_kernel
-scp /tmp/deploy-images/ironic-python-agent.initramfs ubuntu@${VM_IP}:/opt/metal3-dev-env/ironic/html/images/deploy/deploy_ramdisk
+# Adjust file names based on what you downloaded
+scp /tmp/deploy-images/ipa-centos8-stable-wallaby.kernel ubuntu@${VM_IP}:/opt/metal3-dev-env/ironic/html/images/deploy/deploy_kernel
+scp /tmp/deploy-images/ipa-centos8-stable-wallaby.initramfs ubuntu@${VM_IP}:/opt/metal3-dev-env/ironic/html/images/deploy/deploy_ramdisk
 
 # Or if already on VM, just move them
-sudo mv /tmp/deploy-images/ironic-python-agent.kernel /opt/metal3-dev-env/ironic/html/images/deploy/deploy_kernel
-sudo mv /tmp/deploy-images/ironic-python-agent.initramfs /opt/metal3-dev-env/ironic/html/images/deploy/deploy_ramdisk
+sudo mv /tmp/deploy-images/ipa-centos8-stable-wallaby.kernel /opt/metal3-dev-env/ironic/html/images/deploy/deploy_kernel
+sudo mv /tmp/deploy-images/ipa-centos8-stable-wallaby.initramfs /opt/metal3-dev-env/ironic/html/images/deploy/deploy_ramdisk
 ```
 
 ### Step 3: Verify HTTP Server Serves Them
@@ -342,6 +438,29 @@ curl -I http://localhost:8080/deploy/deploy_ramdisk
 
 ### Step 4: Update Ironic Configuration
 
+**If using Helm:**
+
+```bash
+# Update Helm values
+cat > deploy-images-values.yaml <<EOF
+ironic:
+  config:
+    pxe:
+      deploy_kernel: http://${VM_IP}:8080/deploy/deploy_kernel
+      deploy_ramdisk: http://${VM_IP}:8080/deploy/deploy_ramdisk
+EOF
+
+# Upgrade Helm release
+helm upgrade <release-name> <chart-name> -n metal3-system \
+  --reuse-values \
+  -f deploy-images-values.yaml
+
+# Restart Ironic (Helm upgrade should do this automatically)
+kubectl rollout restart deployment -n metal3-system -l app.kubernetes.io/name=metal3-ironic
+```
+
+**If NOT using Helm:**
+
 ```bash
 # Update Ironic ConfigMap
 kubectl patch configmap ironic-config -n metal3-system --type merge -p '{
@@ -354,6 +473,37 @@ kubectl patch configmap ironic-config -n metal3-system --type merge -p '{
 kubectl rollout restart deployment -n metal3-system -l app.kubernetes.io/name=metal3-ironic
 ```
 
+## 🔄 Deploy Kernel/Ramdisk Compatibility with Ubuntu
+
+### Will CentOS-based Deploy Images Work with Ubuntu?
+
+**Short answer**: Yes, generally they will work, but **Metal3 ironic-image releases are recommended** for Ubuntu.
+
+**Why:**
+- Deploy kernel/ramdisk are used **only during provisioning** (not the final OS)
+- They boot the node temporarily to write the OS image to disk
+- They're generally OS-agnostic and should work with any target OS
+
+**However:**
+- CentOS-based deploy images may have compatibility issues in some cases
+- Metal3 ironic-image releases are designed to be OS-agnostic
+- Better compatibility and fewer issues with Ubuntu deployments
+
+### Recommended Sources for Ubuntu
+
+1. **OpenStack tarballs** (Recommended - Most Reliable)
+   - URL: `http://tarballs.openstack.org/ironic-python-agent/dib/files/`
+   - Files: `ipa-centos8-stable-wallaby.kernel` and `ipa-centos8-stable-wallaby.initramfs`
+   - Despite "centos8" in name, these are OS-agnostic and work with Ubuntu
+   - Widely tested and reliable download URLs
+   - **This is the recommended option**
+
+2. **Metal3 ironic-image releases** (If available)
+   - URL: `https://github.com/metal3-io/ironic-image/releases`
+   - Check the releases page for actual file names and download URLs
+   - File names and structure may vary by release
+   - May require manual download and serving via HTTP
+
 ## 📝 Summary
 
 **To fix missing deploy_kernel and deploy_ramdisk:**
@@ -364,7 +514,8 @@ kubectl rollout restart deployment -n metal3-system -l app.kubernetes.io/name=me
    ```
 
 2. **If that doesn't work**: Manually download and serve images
-   - Download from Metal3 releases or OpenStack tarballs
+   - **Recommended**: Use OpenStack tarballs (reliable, work with Ubuntu)
+   - **Alternative**: Check Metal3 ironic-image releases page for actual files
    - Serve via HTTP server
    - Configure Ironic to use the URLs
 
@@ -373,9 +524,16 @@ kubectl rollout restart deployment -n metal3-system -l app.kubernetes.io/name=me
 **Key Points:**
 - ✅ Ironic needs deploy kernel and ramdisk to provision nodes
 - ✅ These are typically downloaded automatically
+- ✅ **For Ubuntu**: OpenStack tarballs work well (despite "centos8" in name, they're OS-agnostic)
+- ✅ Deploy images are OS-agnostic - they only boot nodes temporarily during provisioning
 - ✅ If missing, download manually and serve via HTTP
-- ✅ Configure Ironic ConfigMap to point to the image URLs
+- ✅ **If using Helm**: Configure via Helm values and upgrade the release
+- ✅ **If NOT using Helm**: Configure Ironic ConfigMap directly
 - ✅ Restart Ironic after configuration changes
+
+**Important**: 
+- If Metal3 is installed via Helm (e.g., `metal3-303.0.16+up0.12.6`), configuration should be done through Helm values, not by editing ConfigMaps directly, as Helm will overwrite manual changes.
+- **OpenStack tarballs are the most reliable source** - despite the "centos8" name, they work with Ubuntu and other Linux distributions.
 
 **Most Common Fix**: Restart Ironic - it often just needs to retry downloading the images.
 
