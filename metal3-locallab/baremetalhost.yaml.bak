@@ -1,0 +1,31 @@
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: metal3-node-0
+  namespace: metal3-system
+  annotations:
+    inspect.metal3.io: "disabled"
+spec:
+  online: true
+  bootMACAddress: "52:54:00:75:d4:96"  # MAC from VM
+  bmc:
+    address: "redfish-virtualmedia+http://192.168.1.242:8000/redfish/v1/Systems/721bcaa7-be3d-4d62-99a9-958bb212f2b7"
+    credentialsName: metal3-node-0-bmc-secret
+  bootMode: "UEFI"
+  automatedCleaningMode: "disabled"
+  preprovisioningNetworkDataName: "provisioning-networkdata"
+  image:
+    url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+    checksum: "https://cloud-images.ubuntu.com/focal/current/SHA256SUMS"
+    checksumType: "auto"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: metal3-node-0-bmc-secret
+  namespace: metal3-system
+type: Opaque
+data:
+  username: YWRtaW4=  # admin
+  password: YWRtaW4=  # admin
+

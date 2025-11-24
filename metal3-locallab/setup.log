@@ -1,0 +1,123 @@
+🚀 Setting up Metal3 with SUSE Edge Helm Chart
+================================================
+
+Checking prerequisites...
+[0;32m✅ kubectl is installed[0m
+[0;32m✅ helm is installed[0m
+[0;32m✅ kind is installed[0m
+[0;32m✅ virsh is installed[0m
+[0;32m✅ qemu-system-x86_64 is installed[0m
+[0;32m✅ Docker is running[0m
+
+Cleaning up old Metal3 cluster if it exists...
+
+Creating new kind cluster for Metal3...
+Creating cluster "metal3-management" ...
+ • Ensuring node image (kindest/node:v1.27.1) 🖼  ...
+ ✓ Ensuring node image (kindest/node:v1.27.1) 🖼
+ • Preparing nodes 📦   ...
+ ✓ Preparing nodes 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing CNI 🔌  ...
+ ✓ Installing CNI 🔌
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+Set kubectl context to "kind-metal3-management"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-metal3-management
+
+Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
+Switched to context "kind-metal3-management".
+Waiting for cluster to be ready...
+node/metal3-management-control-plane condition met
+
+Installing MetalLB for Ironic VIP...
+namespace/metallb-system created
+customresourcedefinition.apiextensions.k8s.io/bfdprofiles.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/bgpadvertisements.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/communities.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/ipaddresspools.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/l2advertisements.metallb.io created
+customresourcedefinition.apiextensions.k8s.io/servicel2statuses.metallb.io created
+serviceaccount/controller created
+serviceaccount/speaker created
+role.rbac.authorization.k8s.io/controller created
+role.rbac.authorization.k8s.io/pod-lister created
+clusterrole.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrole.rbac.authorization.k8s.io/metallb-system:speaker created
+rolebinding.rbac.authorization.k8s.io/controller created
+rolebinding.rbac.authorization.k8s.io/pod-lister created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:controller created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:speaker created
+configmap/metallb-excludel2 created
+secret/metallb-webhook-cert created
+service/metallb-webhook-service created
+deployment.apps/controller created
+daemonset.apps/speaker created
+validatingwebhookconfiguration.admissionregistration.k8s.io/metallb-webhook-configuration created
+Waiting for MetalLB to be ready...
+pod/controller-6b9fd67ff4-bpr8q condition met
+pod/speaker-glllm condition met
+Configuring MetalLB IP pool...
+ipaddresspool.metallb.io/default-pool created
+l2advertisement.metallb.io/default created
+[0;32m✅ MetalLB installed and configured[0m
+
+Adding SUSE Edge Helm repository...
+Error: looks like "https://registry.suse.com/edge/charts/" is not a valid chart repository or cannot be reached: failed to fetch https://registry.suse.com/edge/charts/index.yaml : 404 Not Found
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "litmuschaos" chart repository
+...Successfully got an update from the "kyverno" chart repository
+...Successfully got an update from the "fleet" chart repository
+...Successfully got an update from the "cilium" chart repository
+...Successfully got an update from the "rancher-latest" chart repository
+Update Complete. ⎈Happy Helming!⎈
+
+Creating metal3-system namespace...
+namespace/metal3-system created
+
+Installing Metal3 using SUSE Edge Helm chart...
+Note: For troubleshooting, see: https://documentation.suse.com/suse-edge/3.3/html/edge/troubleshooting-directed-network-provisioning.html
+Error: INSTALLATION FAILED: repo suse-edge not found
+[1;33m⚠️  Helm install may have timed out. Checking status...[0m
+No resources found in metal3-system namespace.
+
+Waiting for Metal3 pods to be ready...
+error: no matching resources found
+[1;33m⚠️  Some pods may not be ready yet. Current status:[0m
+No resources found in metal3-system namespace.
+
+[0;32m✅ Metal3 installation complete![0m
+
+Metal3 pods status:
+No resources found in metal3-system namespace.
+
+Next steps:
+1. Set up libvirt bridge network: ./setup-libvirt-bridge.sh
+2. Set up sushy-tools for BMC emulation: ./setup-sushy-tools.sh
+3. Create a libvirt VM with Ubuntu Focal image and BareMetalHost: ./create-baremetal-host.sh
+
+Troubleshooting:
+  - Check Metal3 logs: kubectl logs -n metal3-system -l app.kubernetes.io/component=baremetal-operator
+  - Check Ironic logs: kubectl logs -n metal3-system -l app.kubernetes.io/component=ironic
+  - See: https://documentation.suse.com/suse-edge/3.3/html/edge/troubleshooting-directed-network-provisioning.html
+🚀 Setting up Metal3 with SUSE Edge Helm Chart
+================================================
+
+Checking prerequisites...
+[0;32m✅ kubectl is installed[0m
+[0;32m✅ helm is installed[0m
+[0;32m✅ kind is installed[0m
+[0;32m✅ virsh is installed[0m
+[0;32m✅ qemu-system-x86_64 is installed[0m
+[0;32m✅ Docker is running[0m
+
+Cleaning up old Metal3 cluster if it exists...
+
+Creating new kind cluster for Metal3...
+ERROR: failed to create cluster: node(s) already exist for a cluster with the name "metal3-management"
