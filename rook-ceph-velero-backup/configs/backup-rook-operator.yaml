@@ -1,0 +1,46 @@
+# Rook Ceph Operator Backup CRD
+# This backs up only the Rook Ceph operator and its resources
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-operator-backup
+  namespace: velero
+  labels:
+    app: rook-ceph
+    backup-type: operator
+spec:
+  # Only Rook Ceph namespace
+  includedNamespaces:
+    - rook-ceph
+  # Include only specific Rook Ceph resources
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+    - cephobjectrealms.ceph.rook.io
+    - cephobjectzonegroups.ceph.rook.io
+    - cephobjectzones.ceph.rook.io
+    - cephrbdmirrors.ceph.rook.io
+    - cephclients.ceph.rook.io
+    - deployments
+    - statefulsets
+    - daemonsets
+    - configmaps
+    - secrets
+    - services
+  # Exclude cluster-scoped resources
+  includeClusterResources: false
+  # Use filesystem backup for volumes
+  defaultVolumesToFsBackup: true
+  # Backup storage location
+  storageLocation: default
+  # TTL: 60 days
+  ttl: 1440h
+  # Metadata
+  metadata:
+    labels:
+      app: rook-ceph
+      backup-type: operator
+      created-by: manual
+

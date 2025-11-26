@@ -1,0 +1,37 @@
+# Rook Operator Restore CRD
+# This restores only the Rook Ceph operator resources
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: rook-operator-restore
+  namespace: velero
+  labels:
+    restore-type: operator
+spec:
+  # Backup to restore from
+  backupName: rook-operator-backup
+  # Only Rook Ceph namespace
+  includedNamespaces:
+    - rook-ceph
+  # Exclude cluster-scoped resources
+  includeClusterResources: false
+  # Don't restore PVs for operator restore
+  restorePVs: false
+  # Include only Rook Ceph resources
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+    - deployments
+    - statefulsets
+    - configmaps
+    - secrets
+  # Backup storage location
+  storageLocation: default
+  # Metadata
+  metadata:
+    labels:
+      restore-type: operator
+      created-by: manual
+

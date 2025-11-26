@@ -32,14 +32,16 @@ Source Cluster                    Backup Storage              Target Cluster
 - S3-compatible object storage (MinIO, AWS S3, etc.)
 - Velero CLI installed locally
 
-## Quick Start - Manual Execution
+## Quick Start - Using CRDs and Manifests
 
-- **[MANUAL_COMMANDS.md](MANUAL_COMMANDS.md)** - Quick command reference (copy/paste ready)
-- **[QUICK_START.md](QUICK_START.md)** - Detailed step-by-step guide with explanations
+This guide uses **Velero CRDs and YAML manifests** with `kubectl apply` for all operations.
 
-**Basic manual workflow:**
+- **[MANUAL_COMMANDS.md](MANUAL_COMMANDS.md)** - Quick CRD/manifest reference
+- **[QUICK_START.md](QUICK_START.md)** - Detailed step-by-step guide with CRDs
 
-1. **Install Velero on source cluster**:
+**Basic workflow using CRDs:**
+
+1. **Install Velero** (one-time, uses CLI):
    ```bash
    velero install --provider aws --plugins velero/velero-plugin-for-aws:v1.8.0 \
      --bucket velero-backups --secret-file ./credentials-velero \
@@ -47,22 +49,19 @@ Source Cluster                    Backup Storage              Target Cluster
      --use-node-agent --default-volumes-to-fs-backup
    ```
 
-2. **Create backup**:
+2. **Create backup using manifest**:
    ```bash
-   velero backup create rook-ceph-backup-$(date +%Y%m%d-%H%M%S) \
-     --include-namespaces=rook-ceph,production \
-     --include-cluster-resources=true --default-volumes-to-fs-backup --wait
+   kubectl apply -f configs/backup-full.yaml
+   kubectl get backup -n velero
    ```
 
-3. **Install Velero on target cluster**: Same command as step 1, pointing to same backup storage
-
-4. **Restore backup**:
+3. **Restore backup using manifest**:
    ```bash
-   velero restore create restore-$(date +%Y%m%d-%H%M%S) \
-     --from-backup <backup-name> --include-cluster-resources=true --wait
+   kubectl apply -f configs/restore-full.yaml
+   kubectl get restore -n velero
    ```
 
-> **Note**: This guide focuses on **manual execution**. Scripts in the `scripts/` directory are optional and provided for reference only.
+> **All operations use kubectl apply with YAML manifests**. Only Velero installation uses CLI (one-time setup).
 
 ## Directory Structure
 
@@ -81,9 +80,16 @@ rook-ceph-velero-backup/
 │   ├── list-backups.sh           # List available backups
 │   └── verify-backup.sh          # Verify backup integrity
 └── configs/
-    ├── velero-values.yaml        # Velero Helm values
-    ├── backup-schedule.yaml      # Scheduled backup configuration
-    └── restore-config.yaml       # Restore configuration example
+    ├── backupstoragelocation.yaml # BackupStorageLocation CRD
+    ├── backup-full.yaml           # Full cluster backup CRD
+    ├── backup-rook-operator.yaml  # Rook operator backup CRD
+    ├── backup-app-only.yaml       # Application backup CRD
+    ├── restore-full.yaml          # Full restore CRD
+    ├── restore-app-only.yaml      # Application restore CRD
+    ├── restore-rook-operator.yaml # Rook operator restore CRD
+    ├── backup-schedule.yaml       # Scheduled backup CRDs
+    ├── velero-values.yaml         # Velero Helm values (optional)
+    └── restore-config.yaml        # Restore configuration examples
 ```
 
 ## Important Considerations

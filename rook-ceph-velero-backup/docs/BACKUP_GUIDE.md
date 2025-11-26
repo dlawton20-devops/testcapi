@@ -1,6 +1,6 @@
 # Rook Ceph Backup Guide with Velero
 
-This guide explains how to create backups of your Rook Ceph cluster using Velero.
+This guide explains how to create backups of your Rook Ceph cluster using Velero **CRDs and YAML manifests**.
 
 ## Understanding Rook Ceph Backup
 
@@ -11,25 +11,70 @@ When backing up Rook Ceph with Velero, you're backing up:
 3. **Application Data**: Data stored in Ceph volumes (via PVC backups)
 4. **Configuration**: Ceph configuration stored in Kubernetes resources
 
-## Backup Strategies
+## Backup Strategies Using CRDs
+
+All backups are created using `Backup` CRD manifests with `kubectl apply`.
 
 ### Strategy 1: Full Cluster Backup
 
-Backup everything in the cluster:
+Backup everything in the cluster using manifest:
 
 ```bash
-velero backup create rook-ceph-full-backup \
-  --include-cluster-resources=true \
-  --include-namespaces=rook-ceph,default,kube-system
+# Apply pre-configured manifest
+kubectl apply -f configs/backup-full.yaml
+
+# Or create custom manifest
+cat > my-backup.yaml <<EOF
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-full-backup
+  namespace: velero
+spec:
+  includedNamespaces:
+    - rook-ceph
+    - production
+    - staging
+  includeClusterResources: true
+  defaultVolumesToFsBackup: true
+  storageLocation: default
+  ttl: 720h
+EOF
+
+kubectl apply -f my-backup.yaml
+kubectl get backup -n velero
+```
+
+**Check backup status:**
+```bash
+kubectl get backup rook-ceph-full-backup -n velero
+kubectl describe backup rook-ceph-full-backup -n velero
+kubectl wait --for=condition=Completed backup/rook-ceph-full-backup -n velero --timeout=600s
 ```
 
 ### Strategy 2: Selective Namespace Backup
 
-Backup specific namespaces:
+Backup specific namespaces using manifest:
+
+```yaml
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-selective-backup
+  namespace: velero
+spec:
+  includedNamespaces:
+    - rook-ceph
+    - production
+    - staging
+  includeClusterResources: false
+  defaultVolumesToFsBackup: true
+  storageLocation: default
+```
 
 ```bash
-velero backup create rook-ceph-selective-backup \
-  --include-namespaces=rook-ceph,production,staging
+kubectl apply -f selective-backup.yaml
+kubectl get backup -n velero
 ```
 
 ### Strategy 3: Application-Focused Backup
@@ -44,32 +89,43 @@ velero backup create app-backup \
 
 ### Strategy 4: Rook Ceph Resources Only
 
-Backup only Rook Ceph operator and resources:
+Backup only Rook Ceph operator and resources using manifest:
 
 ```bash
-velero backup create rook-ceph-operator-backup \
-  --include-namespaces=rook-ceph \
-  --include-resources=cephclusters.ceph.rook.io,cephblockpools.ceph.rook.io,cephfilesystems.ceph.rook.io
+# Use pre-configured manifest
+kubectl apply -f configs/backup-rook-operator.yaml
+
+# Check status
+kubectl get backup rook-operator-backup -n velero
 ```
 
-## Recommended Backup Process
+## Recommended Backup Process Using CRDs
 
 ### Step 1: Backup Rook Ceph Operator and CRDs
 
 ```bash
-# Backup Rook operator namespace
-velero backup create rook-operator-backup \
-  --include-namespaces=rook-ceph \
-  --include-resources=cephclusters.ceph.rook.io,cephblockpools.ceph.rook.io,cephfilesystems.ceph.rook.io,cephobjectstores.ceph.rook.io,deployments,statefulsets,configmaps,secrets
+# Apply Rook operator backup manifest
+kubectl apply -f configs/backup-rook-operator.yaml
+
+# Wait for completion
+kubectl wait --for=condition=Completed backup/rook-operator-backup -n velero --timeout=600s
+
+# Verify
+kubectl get backup rook-operator-backup -n velero
 ```
 
 ### Step 2: Backup Application Namespaces with PVCs
 
 ```bash
-# Backup each application namespace
-velero backup create app-production-backup \
-  --include-namespaces=production \
-  --default-volumes-to-fs-backup
+# Apply application backup manifest
+kubectl apply -f configs/backup-app-only.yaml
+
+# Or create custom manifest for specific namespaces
+# Wait for completion
+kubectl wait --for=condition=Completed backup/app-production-backup -n velero --timeout=600s
+
+# Verify
+kubectl get backup -n velero
 ```
 
 ### Step 3: Backup System Resources (Optional)
@@ -154,30 +210,25 @@ velero backup create backup-name \
   --selector app=myapp,env=production
 ```
 
-## Scheduled Backups
+## Scheduled Backups Using Schedule CRD
 
-Create scheduled backups for automatic backups:
-
-```bash
-# Daily backup at 2 AM
-velero schedule create rook-ceph-daily \
-  --schedule="0 2 * * *" \
-  --include-namespaces=rook-ceph,production \
-  --default-volumes-to-fs-backup
-
-# Weekly backup on Sundays at 3 AM
-velero schedule create rook-ceph-weekly \
-  --schedule="0 3 * * 0" \
-  --include-namespaces=rook-ceph,production \
-  --default-volumes-to-fs-backup \
-  --ttl=720h
-```
-
-Or use a YAML file (see `configs/backup-schedule.yaml`):
+Create scheduled backups using `Schedule` CRD:
 
 ```bash
+# Apply schedule manifest
 kubectl apply -f configs/backup-schedule.yaml
+
+# Check schedules
+kubectl get schedule -n velero
+
+# Describe schedule
+kubectl describe schedule rook-ceph-daily-backup -n velero
+
+# List backups created by schedule
+kubectl get backup -n velero -l app=rook-ceph,backup-type=daily
 ```
+
+The schedule manifest creates backups automatically based on the cron schedule defined in the CRD.
 
 ## Monitoring Backups
 
@@ -185,16 +236,22 @@ kubectl apply -f configs/backup-schedule.yaml
 
 ```bash
 # List all backups
-velero backup get
+kubectl get backup -n velero
 
 # Describe specific backup
-velero backup describe <backup-name>
+kubectl describe backup <backup-name> -n velero
 
-# View backup logs
-velero backup logs <backup-name>
+# Get backup details as YAML
+kubectl get backup <backup-name> -n velero -o yaml
 
-# Check backup in Kubernetes
-kubectl get backups -n velero
+# Check backup phase
+kubectl get backup <backup-name> -n velero -o jsonpath='{.status.phase}'
+
+# Watch backup progress
+kubectl get backup <backup-name> -n velero -w
+
+# Wait for backup to complete
+kubectl wait --for=condition=Completed backup/<backup-name> -n velero --timeout=600s
 ```
 
 ### Backup Status Phases
@@ -230,11 +287,11 @@ velero backup create backup-name \
 ### Manual Cleanup
 
 ```bash
-# Delete old backup
-velero backup delete <backup-name>
+# Delete backup using kubectl
+kubectl delete backup <backup-name> -n velero
 
-# Delete backups older than 30 days
-velero backup delete --older-than 720h
+# Delete multiple backups
+kubectl delete backup -n velero -l backup-type=daily
 ```
 
 ## Best Practices

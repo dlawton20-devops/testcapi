@@ -1,0 +1,45 @@
+# Full Cluster Restore CRD
+# This restores everything from a backup
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: full-cluster-restore
+  namespace: velero
+  labels:
+    restore-type: full
+spec:
+  # Backup to restore from
+  backupName: rook-ceph-full-backup
+  # Include all namespaces from backup
+  includedNamespaces:
+    - rook-ceph
+    - production
+    - staging
+  # Include cluster-scoped resources
+  includeClusterResources: true
+  # Restore PVs
+  restorePVs: true
+  # Backup storage location
+  storageLocation: default
+  # Metadata
+  metadata:
+    labels:
+      restore-type: full
+      created-by: manual
+---
+# Example: Restore with namespace mapping
+# apiVersion: velero.io/v1
+# kind: Restore
+# metadata:
+#   name: restore-with-mapping
+#   namespace: velero
+# spec:
+#   backupName: app-production-backup
+#   includedNamespaces:
+#     - production
+#   namespaceMapping:
+#     production: production-new
+#   includeClusterResources: false
+#   restorePVs: true
+#   storageLocation: default
+

@@ -1,18 +1,18 @@
-# Quick Start Guide - Manual Execution
+# Quick Start Guide - Using CRDs and Manifests
 
-This guide provides **manual commands only** for backing up and restoring Rook Ceph with Velero. Copy and paste these commands directly.
+This guide uses **Velero CRDs and YAML manifests** with `kubectl apply` for all operations.
 
 ## Prerequisites Check
 
 ```bash
-# Check if Velero CLI is installed
-velero version --client-only
-
 # Check kubectl connectivity
 kubectl cluster-info
 
 # Check if Rook Ceph is installed
 kubectl get pods -n rook-ceph
+
+# Check if Velero CRDs exist
+kubectl get crd | grep velero.io
 ```
 
 ## Step 1: Set Up Object Storage (MinIO Example)
@@ -49,29 +49,17 @@ aws_secret_access_key=minioadmin123
 EOF
 ```
 
-For AWS S3, use your actual credentials:
-```bash
-cat > credentials-velero <<EOF
-[default]
-aws_access_key_id=YOUR_ACCESS_KEY
-aws_secret_access_key=YOUR_SECRET_KEY
-EOF
-```
+## Step 3: Install Velero (One-time Setup)
 
-## Step 3: Install Velero on Source Cluster
-
-Set your variables first:
+Velero must be installed first. This is the only step that uses CLI:
 
 ```bash
-# Set variables (adjust as needed)
+# Set variables
 BUCKET_NAME=velero-backups
 REGION=minio
 S3_ENDPOINT=https://minio.velero.svc.cluster.local:9000
-```
 
-Install Velero:
-
-```bash
+# Install Velero
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.8.0 \
@@ -89,70 +77,85 @@ Verify installation:
 # Check Velero pods
 kubectl get pods -n velero
 
-# Wait for Velero to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=velero -n velero --timeout=300s
+# Check BackupStorageLocation CRD
+kubectl get backupstoragelocation -n velero
 
-# Check backup storage location
-velero backup-location get
+# Verify CRDs exist
+kubectl get crd | grep velero.io
 ```
 
-## Step 4: Create a Backup
+## Step 4: Create Backup Using Manifest
 
-### Full Cluster Backup
+### Option 1: Use Pre-configured Manifest
 
 ```bash
-# Create backup with timestamp
-BACKUP_NAME="rook-ceph-full-backup-$(date +%Y%m%d-%H%M%S)"
-velero backup create $BACKUP_NAME \
-  --include-namespaces=rook-ceph,production \
-  --include-cluster-resources=true \
-  --default-volumes-to-fs-backup \
-  --wait
+# Apply full backup manifest
+kubectl apply -f configs/backup-full.yaml
 
 # Check backup status
-velero backup get
-velero backup describe $BACKUP_NAME
+kubectl get backup -n velero
+kubectl describe backup rook-ceph-full-backup -n velero
+
+# Watch backup progress
+kubectl get backup rook-ceph-full-backup -n velero -w
 ```
 
-### Rook Operator Only Backup
+### Option 2: Create Custom Backup Manifest
 
-```bash
-BACKUP_NAME="rook-operator-backup-$(date +%Y%m%d-%H%M%S)"
-velero backup create $BACKUP_NAME \
-  --include-namespaces=rook-ceph \
-  --include-resources=cephclusters.ceph.rook.io,cephblockpools.ceph.rook.io,cephfilesystems.ceph.rook.io,cephobjectstores.ceph.rook.io,deployments,statefulsets,configmaps,secrets \
-  --default-volumes-to-fs-backup \
-  --wait
+Create `my-backup.yaml`:
 
-velero backup describe $BACKUP_NAME
+```yaml
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: my-backup-$(date +%Y%m%d-%H%M%S)
+  namespace: velero
+spec:
+  includedNamespaces:
+    - rook-ceph
+    - production
+  includeClusterResources: true
+  defaultVolumesToFsBackup: true
+  storageLocation: default
+  ttl: 720h
 ```
 
-### Application Namespaces Only
+Apply it:
 
 ```bash
-BACKUP_NAME="app-backup-$(date +%Y%m%d-%H%M%S)"
-velero backup create $BACKUP_NAME \
-  --include-namespaces=production,staging \
-  --default-volumes-to-fs-backup \
-  --wait
+kubectl apply -f my-backup.yaml
+```
 
-velero backup describe $BACKUP_NAME
+### Check Backup Status
+
+```bash
+# List all backups
+kubectl get backup -n velero
+
+# Get backup details
+kubectl get backup <backup-name> -n velero -o yaml
+
+# Check backup phase
+kubectl get backup <backup-name> -n velero -o jsonpath='{.status.phase}'
+
+# Wait for backup to complete
+kubectl wait --for=condition=Completed backup/<backup-name> -n velero --timeout=600s
 ```
 
 ## Step 5: Verify Backup
 
 ```bash
-# List all backups
-velero backup get
+# List backups
+kubectl get backup -n velero
 
-# Describe specific backup (replace with your backup name)
-velero backup describe <backup-name>
-
-# View backup logs
-velero backup logs <backup-name>
+# Describe backup
+kubectl describe backup <backup-name> -n velero
 
 # Check backup phase (should be "Completed")
-velero backup describe <backup-name> | grep Phase
+kubectl get backup <backup-name> -n velero -o jsonpath='{.status.phase}'
+
+# Check for errors
+kubectl get backup <backup-name> -n velero -o yaml | grep -A 10 errors
 ```
 
 ## Step 6: Install Velero on Target Cluster
@@ -170,65 +173,78 @@ kubectl config use-context <target-cluster-context>
 Install Velero (same command as Step 3, pointing to same backup storage):
 
 ```bash
-# Set variables (same as source cluster)
-BUCKET_NAME=velero-backups
-REGION=minio
-S3_ENDPOINT=https://minio.velero.svc.cluster.local:9000
-
-# Install Velero
+# Same installation command as source cluster
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.8.0 \
-  --bucket $BUCKET_NAME \
+  --bucket velero-backups \
   --secret-file ./credentials-velero \
-  --backup-location-config region=$REGION,s3ForcePathStyle="true",s3Url=$S3_ENDPOINT \
+  --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=https://minio.velero.svc.cluster.local:9000 \
   --use-node-agent \
   --default-volumes-to-fs-backup
 
 # Verify backups are visible
-velero backup get
+kubectl get backup -n velero
 ```
 
-## Step 7: Restore from Backup
+## Step 7: Restore from Backup Using Manifest
 
-### Full Restore
+### Option 1: Use Pre-configured Manifest
+
+First, edit the manifest to set the correct backup name:
 
 ```bash
-# Replace <backup-name> with your actual backup name
-RESTORE_NAME="restore-$(date +%Y%m%d-%H%M%S)"
-velero restore create $RESTORE_NAME \
-  --from-backup <backup-name> \
-  --include-cluster-resources=true \
-  --wait
+# Edit restore manifest
+kubectl apply -f configs/restore-full.yaml
 
 # Check restore status
-velero restore get
-velero restore describe $RESTORE_NAME
+kubectl get restore -n velero
+kubectl describe restore full-cluster-restore -n velero
+
+# Watch restore progress
+kubectl get restore full-cluster-restore -n velero -w
 ```
 
-### Restore Specific Namespaces
+### Option 2: Create Custom Restore Manifest
 
-```bash
-RESTORE_NAME="restore-$(date +%Y%m%d-%H%M%S)"
-velero restore create $RESTORE_NAME \
-  --from-backup <backup-name> \
-  --include-namespaces=production \
-  --wait
+Create `my-restore.yaml`:
 
-velero restore describe $RESTORE_NAME
+```yaml
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: my-restore-$(date +%Y%m%d-%H%M%S)
+  namespace: velero
+spec:
+  backupName: <backup-name>  # Replace with your backup name
+  includedNamespaces:
+    - rook-ceph
+    - production
+  includeClusterResources: true
+  restorePVs: true
+  storageLocation: default
 ```
 
-### Restore with Namespace Mapping
+Apply it:
 
 ```bash
-RESTORE_NAME="restore-$(date +%Y%m%d-%H%M%S)"
-velero restore create $RESTORE_NAME \
-  --from-backup <backup-name> \
-  --include-namespaces=production \
-  --namespace-mappings production:production-new \
-  --wait
+kubectl apply -f my-restore.yaml
+```
 
-velero restore describe $RESTORE_NAME
+### Check Restore Status
+
+```bash
+# List all restores
+kubectl get restore -n velero
+
+# Get restore details
+kubectl get restore <restore-name> -n velero -o yaml
+
+# Check restore phase
+kubectl get restore <restore-name> -n velero -o jsonpath='{.status.phase}'
+
+# Wait for restore to complete
+kubectl wait --for=condition=Completed restore/<restore-name> -n velero --timeout=600s
 ```
 
 ## Step 8: Verify Restore
@@ -254,39 +270,63 @@ kubectl get storageclass
 kubectl get all -n <namespace>
 ```
 
-## Common Manual Commands
+## Scheduled Backups Using CRDs
+
+Create scheduled backups using Schedule CRD:
+
+```bash
+# Apply schedule manifest
+kubectl apply -f configs/backup-schedule.yaml
+
+# Check schedules
+kubectl get schedule -n velero
+
+# Describe schedule
+kubectl describe schedule rook-ceph-daily-backup -n velero
+
+# List backups created by schedule
+kubectl get backup -n velero -l app=rook-ceph,backup-type=daily
+```
+
+## Common Operations
 
 ### List Backups
 
 ```bash
 # Simple list
-velero backup get
+kubectl get backup -n velero
 
-# Detailed information
-velero backup describe <backup-name> --details
+# With details
+kubectl get backup -n velero -o wide
+
+# By label
+kubectl get backup -n velero -l app=rook-ceph
 ```
 
 ### Delete Backup
 
 ```bash
-velero backup delete <backup-name>
+kubectl delete backup <backup-name> -n velero
 ```
 
-### Create Scheduled Backup
+### List Restores
 
 ```bash
-# Daily backup at 2 AM UTC
-velero schedule create rook-ceph-daily \
-  --schedule="0 2 * * *" \
-  --include-namespaces=rook-ceph,production \
-  --default-volumes-to-fs-backup \
-  --ttl=720h
+kubectl get restore -n velero
+kubectl get restore -n velero -o wide
+```
 
-# List schedules
-velero schedule get
+### Delete Restore
 
-# Describe schedule
-velero schedule describe <schedule-name>
+```bash
+kubectl delete restore <restore-name> -n velero
+```
+
+### Check BackupStorageLocation
+
+```bash
+kubectl get backupstoragelocation -n velero
+kubectl describe backupstoragelocation default -n velero
 ```
 
 ### Check Velero Status
@@ -305,51 +345,30 @@ kubectl get pods -n velero -l component=node-agent
 kubectl logs -n velero -l component=node-agent --tail=100
 ```
 
-### List Restores
+## Troubleshooting
+
+### Check Backup Errors
 
 ```bash
-# List all restores
-velero restore get
-
-# Describe restore
-velero restore describe <restore-name>
-
-# View restore logs
-velero restore logs <restore-name>
+kubectl get backup <name> -n velero -o yaml | grep -A 10 errors
+kubectl describe backup <name> -n velero | grep -i error
 ```
 
-## Troubleshooting Commands
+### Check Restore Errors
 
 ```bash
-# Check backup storage location
-velero backup-location get
+kubectl get restore <name> -n velero -o yaml | grep -A 10 errors
+kubectl describe restore <name> -n velero | grep -i error
+```
 
-# Test S3 connectivity from cluster
+### Test S3 Connectivity
+
+```bash
 kubectl run -it --rm debug --image=amazon/aws-cli --restart=Never -- \
   aws s3 ls s3://velero-backups --endpoint-url=https://minio.velero.svc.cluster.local:9000
-
-# Check Velero configuration
-kubectl get deployment velero -n velero -o yaml
-
-# Check Velero secret
-kubectl get secret cloud-credentials -n velero -o yaml
-
-# View backup details
-velero backup describe <backup-name> --details
-
-# View restore details
-velero restore describe <restore-name> --details
-
-# Check for errors in backup
-velero backup logs <backup-name> | grep -i error
-
-# Check for errors in restore
-velero restore logs <restore-name> | grep -i error
 ```
 
 ## Complete Example Workflow
-
-Here's a complete example you can copy and adapt:
 
 ```bash
 # ============================================
@@ -363,65 +382,56 @@ aws_access_key_id=minioadmin
 aws_secret_access_key=minioadmin123
 EOF
 
-# 2. Install Velero
-BUCKET_NAME=velero-backups
-REGION=minio
-S3_ENDPOINT=https://minio.velero.svc.cluster.local:9000
-
+# 2. Install Velero (one-time)
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.8.0 \
-  --bucket $BUCKET_NAME \
+  --bucket velero-backups \
   --secret-file ./credentials-velero \
   --use-volume-snapshots=false \
-  --backup-location-config region=$REGION,s3ForcePathStyle="true",s3Url=$S3_ENDPOINT \
+  --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=https://minio.velero.svc.cluster.local:9000 \
   --use-node-agent \
   --default-volumes-to-fs-backup
 
 # 3. Wait for Velero to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=velero -n velero --timeout=300s
 
-# 4. Create backup
-BACKUP_NAME="rook-ceph-backup-$(date +%Y%m%d-%H%M%S)"
-velero backup create $BACKUP_NAME \
-  --include-namespaces=rook-ceph,production \
-  --include-cluster-resources=true \
-  --default-volumes-to-fs-backup \
-  --wait
+# 4. Create backup using manifest
+kubectl apply -f configs/backup-full.yaml
 
-# 5. Verify backup
-velero backup get
-velero backup describe $BACKUP_NAME
+# 5. Wait for backup to complete
+kubectl wait --for=condition=Completed backup/rook-ceph-full-backup -n velero --timeout=600s
+
+# 6. Verify backup
+kubectl get backup rook-ceph-full-backup -n velero
 
 # ============================================
 # TARGET CLUSTER - Restore
 # ============================================
 
-# 6. Switch to target cluster
+# 7. Switch to target cluster
 kubectl config use-context <target-cluster-context>
 
-# 7. Install Velero (same as step 2)
+# 8. Install Velero (same as step 2)
 velero install \
   --provider aws \
   --plugins velero/velero-plugin-for-aws:v1.8.0 \
-  --bucket $BUCKET_NAME \
+  --bucket velero-backups \
   --secret-file ./credentials-velero \
-  --backup-location-config region=$REGION,s3ForcePathStyle="true",s3Url=$S3_ENDPOINT \
+  --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=https://minio.velero.svc.cluster.local:9000 \
   --use-node-agent \
   --default-volumes-to-fs-backup
 
-# 8. Verify backups are visible
-velero backup get
+# 9. Verify backups are visible
+kubectl get backup -n velero
 
-# 9. Restore backup
-RESTORE_NAME="restore-$(date +%Y%m%d-%H%M%S)"
-velero restore create $RESTORE_NAME \
-  --from-backup $BACKUP_NAME \
-  --include-cluster-resources=true \
-  --wait
+# 10. Restore backup using manifest
+kubectl apply -f configs/restore-full.yaml
 
-# 10. Verify restore
-velero restore get
+# 11. Wait for restore to complete
+kubectl wait --for=condition=Completed restore/full-cluster-restore -n velero --timeout=600s
+
+# 12. Verify restore
 kubectl get cephcluster -n rook-ceph
 kubectl get pods -n rook-ceph
 kubectl get pvc -A
@@ -429,8 +439,9 @@ kubectl get pvc -A
 
 ## Notes
 
-- **All commands are manual** - copy and paste as needed
-- Replace `<backup-name>`, `<restore-name>`, and other placeholders with actual values
+- **All operations use kubectl apply** with YAML manifests
+- **Only Velero installation** uses CLI (one-time setup)
+- Replace `<backup-name>` and other placeholders with actual values
 - Always verify backups before relying on them for disaster recovery
 - Test restore procedures in a non-production environment first
-- Scripts in `scripts/` directory are optional and provided for reference only
+- All manifests are in the `configs/` directory
