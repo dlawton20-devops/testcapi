@@ -1,0 +1,78 @@
+# Example Restore Configuration
+# This file shows example restore configurations for different scenarios
+
+---
+# Example 1: Full Cluster Restore
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: full-cluster-restore
+  namespace: velero
+spec:
+  backupName: rook-ceph-full-backup-20240115-020000
+  includedNamespaces:
+    - rook-ceph
+    - production
+    - staging
+  includeClusterResources: true
+  restorePVs: true
+  # Namespace mappings (if restoring to different namespace names)
+  # namespaceMapping:
+  #   production: production-new
+---
+# Example 2: Application-Only Restore
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: app-only-restore
+  namespace: velero
+spec:
+  backupName: app-production-backup-20240115-020000
+  includedNamespaces:
+    - production
+  includeClusterResources: false
+  restorePVs: true
+  includedResources:
+    - pods
+    - deployments
+    - services
+    - persistentvolumeclaims
+    - configmaps
+    - secrets
+---
+# Example 3: Rook Operator Restore
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: rook-operator-restore
+  namespace: velero
+spec:
+  backupName: rook-operator-backup-20240115-020000
+  includedNamespaces:
+    - rook-ceph
+  includeClusterResources: false
+  restorePVs: false
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - deployments
+    - statefulsets
+    - configmaps
+    - secrets
+---
+# Example 4: Namespace Migration Restore
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: namespace-migration-restore
+  namespace: velero
+spec:
+  backupName: app-backup-20240115-020000
+  includedNamespaces:
+    - production
+  namespaceMapping:
+    production: production-new
+  includeClusterResources: false
+  restorePVs: true
+

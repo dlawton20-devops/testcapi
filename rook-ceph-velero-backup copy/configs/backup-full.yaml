@@ -1,0 +1,31 @@
+# Full Cluster Backup CRD
+# This backs up Rook Ceph operator and application namespaces
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-ceph-full-backup
+  namespace: velero
+  labels:
+    app: rook-ceph
+    backup-type: full
+spec:
+  # Include specific namespaces
+  includedNamespaces:
+    - rook-ceph
+    - production
+    - staging
+  # Include cluster-scoped resources (StorageClasses, CRDs, etc.)
+  includeClusterResources: true
+  # Use filesystem backup for volumes (required for Rook Ceph)
+  defaultVolumesToFsBackup: true
+  # Backup storage location
+  storageLocation: default
+  # TTL for backup retention (optional)
+  ttl: 720h  # 30 days
+  # Metadata for the backup
+  metadata:
+    labels:
+      app: rook-ceph
+      backup-type: full
+      created-by: manual
+

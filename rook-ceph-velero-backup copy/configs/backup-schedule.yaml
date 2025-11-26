@@ -1,0 +1,90 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-daily-backup
+  namespace: velero
+spec:
+  # Schedule: Daily at 2 AM UTC
+  schedule: "0 2 * * *"
+  template:
+    # Include Rook Ceph namespace and application namespaces
+    includedNamespaces:
+      - rook-ceph
+      - production
+      - staging
+    # Include cluster-scoped resources
+    includeClusterResources: true
+    # Use filesystem backup for volumes
+    defaultVolumesToFsBackup: true
+    # Backup storage location
+    storageLocation: default
+    # TTL: 30 days
+    ttl: 720h
+    # Metadata
+    metadata:
+      labels:
+        app: rook-ceph
+        backup-type: daily
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-ceph-weekly-backup
+  namespace: velero
+spec:
+  # Schedule: Weekly on Sunday at 3 AM UTC
+  schedule: "0 3 * * 0"
+  template:
+    # Include all namespaces
+    includedNamespaces:
+      - rook-ceph
+      - production
+      - staging
+    # Include cluster-scoped resources
+    includeClusterResources: true
+    # Use filesystem backup for volumes
+    defaultVolumesToFsBackup: true
+    # Backup storage location
+    storageLocation: default
+    # TTL: 90 days
+    ttl: 2160h
+    # Metadata
+    metadata:
+      labels:
+        app: rook-ceph
+        backup-type: weekly
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: rook-operator-backup
+  namespace: velero
+spec:
+  # Schedule: Daily at 1 AM UTC
+  schedule: "0 1 * * *"
+  template:
+    # Only Rook Ceph operator namespace
+    includedNamespaces:
+      - rook-ceph
+    # Include only Rook Ceph resources
+    includedResources:
+      - cephclusters.ceph.rook.io
+      - cephblockpools.ceph.rook.io
+      - cephfilesystems.ceph.rook.io
+      - cephobjectstores.ceph.rook.io
+      - deployments
+      - statefulsets
+      - configmaps
+      - secrets
+    # Exclude cluster-scoped resources
+    includeClusterResources: false
+    # Backup storage location
+    storageLocation: default
+    # TTL: 60 days
+    ttl: 1440h
+    # Metadata
+    metadata:
+      labels:
+        app: rook-ceph
+        backup-type: operator
+

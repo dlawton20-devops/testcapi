@@ -1,0 +1,39 @@
+# BackupStorageLocation CRD
+# This defines where backups are stored (S3, Azure, GCP, etc.)
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: velero
+spec:
+  # Provider: aws, azure, gcp
+  provider: aws
+  # Object storage configuration
+  objectStorage:
+    bucket: velero-backups
+  # Configuration for the storage provider
+  config:
+    region: minio
+    s3ForcePathStyle: "true"
+    s3Url: https://minio.velero.svc.cluster.local:9000
+  # Credential secret (created during velero install)
+  credential:
+    name: cloud-credentials
+    key: cloud
+---
+# Example for AWS S3 (uncomment and modify as needed)
+# apiVersion: velero.io/v1
+# kind: BackupStorageLocation
+# metadata:
+#   name: aws-s3
+#   namespace: velero
+# spec:
+#   provider: aws
+#   objectStorage:
+#     bucket: your-bucket-name
+#   config:
+#     region: us-east-1
+#   credential:
+#     name: cloud-credentials
+#     key: cloud
+

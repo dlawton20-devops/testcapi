@@ -1,0 +1,30 @@
+# Application-Only Backup CRD
+# This backs up only application namespaces and their PVCs
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: app-production-backup
+  namespace: velero
+  labels:
+    app: production
+    backup-type: application
+spec:
+  # Include application namespaces
+  includedNamespaces:
+    - production
+    - staging
+  # Exclude cluster-scoped resources
+  includeClusterResources: false
+  # Use filesystem backup for volumes (required for Rook Ceph PVCs)
+  defaultVolumesToFsBackup: true
+  # Backup storage location
+  storageLocation: default
+  # TTL: 30 days
+  ttl: 720h
+  # Metadata
+  metadata:
+    labels:
+      app: production
+      backup-type: application
+      created-by: manual
+

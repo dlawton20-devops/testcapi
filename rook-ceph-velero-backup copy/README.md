@@ -1,0 +1,140 @@
+# Rook Ceph Backup and Restore with Velero
+
+This guide demonstrates how to backup a Rook Ceph cluster using Velero and restore it to another location/cluster.
+
+## Overview
+
+Velero is a backup and restore tool for Kubernetes that can backup:
+- Kubernetes resources (Pods, Services, ConfigMaps, etc.)
+- Persistent Volumes (PVs) and Persistent Volume Claims (PVCs)
+- Rook Ceph cluster configuration and data
+
+## Architecture
+
+```
+Source Cluster                    Backup Storage              Target Cluster
+┌──────────────┐                 ┌──────────────┐           ┌──────────────┐
+│              │                 │              │           │              │
+│ Rook Ceph    │───Backup───────▶│  S3/MinIO/   │───Restore▶│ Rook Ceph    │
+│ Cluster      │                 │  Object      │           │ Cluster      │
+│              │                 │  Storage     │           │              │
+│ - CephFS     │                 │              │           │ - CephFS     │
+│ - RBD        │                 │              │           │ - RBD        │
+│ - Object     │                 │              │           │ - Object     │
+│   Store      │                 │              │           │   Store      │
+└──────────────┘                 └──────────────┘           └──────────────┘
+```
+
+## Prerequisites
+
+- Kubernetes cluster with Rook Ceph installed
+- kubectl configured for source and target clusters
+- S3-compatible object storage (MinIO, AWS S3, etc.)
+- Velero CLI installed locally
+
+## Quick Start - Using CRDs and Manifests
+
+This guide uses **Velero CRDs and YAML manifests** with `kubectl apply` for all operations.
+
+- **[MANUAL_COMMANDS.md](MANUAL_COMMANDS.md)** - Quick CRD/manifest reference
+- **[QUICK_START.md](QUICK_START.md)** - Detailed step-by-step guide with CRDs
+
+**Basic workflow using CRDs:**
+
+1. **Install Velero** (one-time, uses CLI):
+   ```bash
+   velero install --provider aws --plugins velero/velero-plugin-for-aws:v1.8.0 \
+     --bucket velero-backups --secret-file ./credentials-velero \
+     --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=https://minio.velero.svc.cluster.local:9000 \
+     --use-node-agent --default-volumes-to-fs-backup
+   ```
+
+2. **Create backup using manifest**:
+   ```bash
+   kubectl apply -f configs/backup-full.yaml
+   kubectl get backup -n velero
+   ```
+
+3. **Restore backup using manifest**:
+   ```bash
+   kubectl apply -f configs/restore-full.yaml
+   kubectl get restore -n velero
+   ```
+
+> **All operations use kubectl apply with YAML manifests**. Only Velero installation uses CLI (one-time setup).
+
+## Directory Structure
+
+```
+rook-ceph-velero-backup/
+├── README.md                    # This file
+├── docs/
+│   ├── SETUP_GUIDE.md           # Detailed setup instructions
+│   ├── BACKUP_GUIDE.md          # Backup procedures
+│   ├── RESTORE_GUIDE.md         # Restore procedures
+│   ├── ROOK_DISASTER_RECOVERY.md # Rook disaster recovery scenarios
+│   └── TROUBLESHOOTING.md       # Common issues and solutions
+├── scripts/
+│   ├── install-velero.sh        # Install Velero on cluster
+│   ├── create-backup.sh         # Create backup of Rook Ceph
+│   ├── restore-backup.sh         # Restore backup to target cluster
+│   ├── list-backups.sh           # List available backups
+│   └── verify-backup.sh          # Verify backup integrity
+└── configs/
+    ├── backupstoragelocation.yaml    # BackupStorageLocation CRD
+    ├── backup-full.yaml              # Full cluster backup CRD
+    ├── backup-rook-operator.yaml     # Rook operator backup CRD
+    ├── backup-app-only.yaml          # Application backup CRD
+    ├── backup-disaster-recovery.yaml # Disaster recovery backup CRD
+    ├── restore-full.yaml             # Full restore CRD
+    ├── restore-app-only.yaml         # Application restore CRD
+    ├── restore-rook-operator.yaml   # Rook operator restore CRD
+    ├── restore-disaster-recovery.yaml # Disaster recovery restore CRD
+    ├── backup-schedule.yaml          # Scheduled backup CRDs
+    ├── velero-values.yaml            # Velero Helm values (optional)
+    └── restore-config.yaml           # Restore configuration examples
+```
+
+## Important Considerations
+
+### What Gets Backed Up
+
+✅ **Backed Up:**
+- Rook operator and CRDs
+- CephCluster, CephBlockPool, CephFilesystem resources
+- PVCs and their metadata
+- Application data stored in Ceph volumes
+
+⚠️ **Not Backed Up by Default:**
+- Ceph OSD data directly (backed up via PVC snapshots)
+- Ceph configuration stored outside Kubernetes
+- Node-specific configurations
+
+### Backup Storage Requirements
+
+- **S3-compatible storage** is required
+- Ensure sufficient storage capacity (typically 2-3x your data size)
+- Consider backup retention policies
+- Plan for cross-region replication if needed
+
+### Restore Considerations
+
+- Target cluster must have Rook Ceph installed
+- Target cluster should have similar node configuration
+- Storage classes must be compatible
+- Namespace mappings may be required
+
+## Documentation
+
+- [Setup Guide](docs/SETUP_GUIDE.md) - Install and configure Velero
+- [Backup Guide](docs/BACKUP_GUIDE.md) - Create and manage backups
+- [Restore Guide](docs/RESTORE_GUIDE.md) - Restore backups to target cluster
+- [Rook Disaster Recovery](docs/ROOK_DISASTER_RECOVERY.md) - Rook-specific disaster recovery scenarios
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+
+## Examples
+
+- **Manual Commands**: See [QUICK_START.md](QUICK_START.md) for complete manual command examples
+- **Configuration Files**: See the `configs/` directory for example YAML configurations
+- **Scripts** (optional): Scripts in `scripts/` directory are provided for reference only - all operations can be done manually
+

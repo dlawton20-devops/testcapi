@@ -1,0 +1,35 @@
+# Application-Only Restore CRD
+# This restores only application namespaces
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: app-restore
+  namespace: velero
+  labels:
+    restore-type: application
+spec:
+  # Backup to restore from
+  backupName: app-production-backup
+  # Include only application namespaces
+  includedNamespaces:
+    - production
+  # Exclude cluster-scoped resources
+  includeClusterResources: false
+  # Restore PVs
+  restorePVs: true
+  # Include only specific resources (optional)
+  includedResources:
+    - pods
+    - deployments
+    - services
+    - persistentvolumeclaims
+    - configmaps
+    - secrets
+  # Backup storage location
+  storageLocation: default
+  # Metadata
+  metadata:
+    labels:
+      restore-type: application
+      created-by: manual
+

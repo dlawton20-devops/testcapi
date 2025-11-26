@@ -1,0 +1,78 @@
+# Disaster Recovery Restore CRD
+# Restore Rook Ceph cluster for disaster recovery scenarios
+# Based on: https://www.rook.io/docs/rook/latest-release/Troubleshooting/disaster-recovery/
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: rook-disaster-recovery-restore
+  namespace: velero
+  labels:
+    restore-type: disaster-recovery
+    purpose: disaster-recovery
+spec:
+  # Backup to restore from (update with your backup name)
+  backupName: rook-disaster-recovery-backup
+  # Include all namespaces from backup
+  includedNamespaces:
+    - rook-ceph
+    # Add your application namespaces here
+    # - production
+    # - staging
+  # Include cluster-scoped resources
+  includeClusterResources: true
+  # Restore PVs
+  restorePVs: true
+  # Include all Rook Ceph resources
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+    - deployments
+    - statefulsets
+    - configmaps
+    - secrets
+    - services
+    - persistentvolumeclaims
+  # Backup storage location
+  storageLocation: default
+  # Metadata
+  metadata:
+    labels:
+      restore-type: disaster-recovery
+      created-by: manual
+      purpose: disaster-recovery
+---
+# Example: Restore CRDs only (for Scenario 2: Restoring CRDs After Deletion)
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-rook-crds-only
+  namespace: velero
+spec:
+  backupName: rook-disaster-recovery-backup
+  includedNamespaces:
+    - rook-ceph
+  includeClusterResources: true
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+  restorePVs: false
+  storageLocation: default
+---
+# Example: Restore namespace after deletion (for Scenario 5)
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-rook-namespace
+  namespace: velero
+spec:
+  backupName: rook-disaster-recovery-backup
+  includedNamespaces:
+    - rook-ceph
+  includeClusterResources: true
+  restorePVs: true
+  storageLocation: default
+
