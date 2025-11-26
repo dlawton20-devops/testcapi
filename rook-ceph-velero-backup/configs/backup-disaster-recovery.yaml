@@ -1,0 +1,54 @@
+# Disaster Recovery Backup CRD
+# Comprehensive backup for Rook Ceph disaster recovery scenarios
+# Based on: https://www.rook.io/docs/rook/latest-release/Troubleshooting/disaster-recovery/
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: rook-disaster-recovery-backup
+  namespace: velero
+  labels:
+    app: rook-ceph
+    backup-type: disaster-recovery
+    purpose: disaster-recovery
+spec:
+  # Include Rook Ceph namespace and all application namespaces
+  includedNamespaces:
+    - rook-ceph
+    # Add your application namespaces here
+    # - production
+    # - staging
+  # Include cluster-scoped resources (CRDs, StorageClasses, etc.)
+  includeClusterResources: true
+  # Include all Rook Ceph resources
+  includedResources:
+    - cephclusters.ceph.rook.io
+    - cephblockpools.ceph.rook.io
+    - cephfilesystems.ceph.rook.io
+    - cephobjectstores.ceph.rook.io
+    - cephobjectrealms.ceph.rook.io
+    - cephobjectzonegroups.ceph.rook.io
+    - cephobjectzones.ceph.rook.io
+    - cephrbdmirrors.ceph.rook.io
+    - cephclients.ceph.rook.io
+    - deployments
+    - statefulsets
+    - daemonsets
+    - configmaps
+    - secrets
+    - services
+    - persistentvolumeclaims
+    - persistentvolumes
+  # Use filesystem backup for volumes (required for Rook Ceph)
+  defaultVolumesToFsBackup: true
+  # Backup storage location
+  storageLocation: default
+  # TTL: 90 days (longer retention for disaster recovery)
+  ttl: 2160h
+  # Metadata
+  metadata:
+    labels:
+      app: rook-ceph
+      backup-type: disaster-recovery
+      created-by: manual
+      purpose: disaster-recovery
+

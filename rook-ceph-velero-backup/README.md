@@ -69,9 +69,10 @@ This guide uses **Velero CRDs and YAML manifests** with `kubectl apply` for all 
 rook-ceph-velero-backup/
 ├── README.md                    # This file
 ├── docs/
-│   ├── SETUP_GUIDE.md          # Detailed setup instructions
+│   ├── SETUP_GUIDE.md           # Detailed setup instructions
 │   ├── BACKUP_GUIDE.md          # Backup procedures
 │   ├── RESTORE_GUIDE.md         # Restore procedures
+│   ├── ROOK_DISASTER_RECOVERY.md # Rook disaster recovery scenarios
 │   └── TROUBLESHOOTING.md       # Common issues and solutions
 ├── scripts/
 │   ├── install-velero.sh        # Install Velero on cluster
@@ -80,16 +81,18 @@ rook-ceph-velero-backup/
 │   ├── list-backups.sh           # List available backups
 │   └── verify-backup.sh          # Verify backup integrity
 └── configs/
-    ├── backupstoragelocation.yaml # BackupStorageLocation CRD
-    ├── backup-full.yaml           # Full cluster backup CRD
-    ├── backup-rook-operator.yaml  # Rook operator backup CRD
-    ├── backup-app-only.yaml       # Application backup CRD
-    ├── restore-full.yaml          # Full restore CRD
-    ├── restore-app-only.yaml      # Application restore CRD
-    ├── restore-rook-operator.yaml # Rook operator restore CRD
-    ├── backup-schedule.yaml       # Scheduled backup CRDs
-    ├── velero-values.yaml         # Velero Helm values (optional)
-    └── restore-config.yaml        # Restore configuration examples
+    ├── backupstoragelocation.yaml    # BackupStorageLocation CRD
+    ├── backup-full.yaml              # Full cluster backup CRD
+    ├── backup-rook-operator.yaml     # Rook operator backup CRD
+    ├── backup-app-only.yaml          # Application backup CRD
+    ├── backup-disaster-recovery.yaml # Disaster recovery backup CRD
+    ├── restore-full.yaml             # Full restore CRD
+    ├── restore-app-only.yaml         # Application restore CRD
+    ├── restore-rook-operator.yaml   # Rook operator restore CRD
+    ├── restore-disaster-recovery.yaml # Disaster recovery restore CRD
+    ├── backup-schedule.yaml          # Scheduled backup CRDs
+    ├── velero-values.yaml            # Velero Helm values (optional)
+    └── restore-config.yaml           # Restore configuration examples
 ```
 
 ## Important Considerations
@@ -126,6 +129,7 @@ rook-ceph-velero-backup/
 - [Setup Guide](docs/SETUP_GUIDE.md) - Install and configure Velero
 - [Backup Guide](docs/BACKUP_GUIDE.md) - Create and manage backups
 - [Restore Guide](docs/RESTORE_GUIDE.md) - Restore backups to target cluster
+- [Rook Disaster Recovery](docs/ROOK_DISASTER_RECOVERY.md) - Rook-specific disaster recovery scenarios
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 
 ## Examples

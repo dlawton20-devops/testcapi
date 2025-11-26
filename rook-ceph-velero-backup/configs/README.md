@@ -72,6 +72,30 @@ kubectl apply -f restore-rook-operator.yaml
 kubectl get restore rook-operator-restore -n velero
 ```
 
+## Disaster Recovery Manifests
+
+### `backup-disaster-recovery.yaml`
+Comprehensive backup for Rook Ceph disaster recovery scenarios. Includes all Rook CRs, secrets, configmaps, and PVCs.
+
+**Usage:**
+```bash
+kubectl apply -f backup-disaster-recovery.yaml
+kubectl get backup rook-disaster-recovery-backup -n velero
+```
+
+### `restore-disaster-recovery.yaml`
+Restore manifest for disaster recovery scenarios. Includes examples for:
+- Full cluster restore
+- CRDs-only restore (for CRD deletion recovery)
+- Namespace restore (for namespace deletion recovery)
+
+**Usage:**
+```bash
+# Edit manifest to set correct backupName, then:
+kubectl apply -f restore-disaster-recovery.yaml
+kubectl get restore -n velero
+```
+
 ## Configuration Manifests
 
 ### `backupstoragelocation.yaml`
