@@ -33,8 +33,21 @@ This folder contains all documentation related to building OS images with SUSE E
 - Image serving and caching
 - Integration with Metal3
 
+### 5. MANUAL_PODMAN_SETUP.md
+**Manual Setup with Podman (Local)**
+- Running Edge Image Builder locally without Helm/Kubernetes
+- Directory structure setup (base-images, network, custom/scripts)
+- Creating downstream-cluster-config.yaml
+- Preparing base images (xz decompression)
+- Required 01-fix-growfs.sh script
+- Complete step-by-step manual workflow
+
 ## Quick Start
 
+### For Local Podman Setup (No Kubernetes Required)
+1. **Manual Setup**: See `MANUAL_PODMAN_SETUP.md` - Complete guide for running Edge Image Builder locally with Podman
+
+### For Kubernetes/Helm Setup
 1. **Install Edge Image Builder**: See `EDGE_IMAGE_BUILDER_INSTALL.md`
 2. **Build Image with nmstate**: See `BUILD_IMAGE_WITH_NMSTATE.md`
 3. **Configure Static IPs**: See `EDGE_IMAGE_BUILDER_STATIC_IP.md`
