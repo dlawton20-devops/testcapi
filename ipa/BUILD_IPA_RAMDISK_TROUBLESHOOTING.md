@@ -186,11 +186,18 @@ apt-cache search nmstate
 
 ### Issue: Element Not Found
 
-**Problem**: `ironic-python-agent-builder` can't find your custom element.
+**Problem**: `ironic-python-agent-builder` or `disk-image-create` can't find an element.
 
-**Error**: `ElementNotFound: Could not find element 'ipa-network-config'`
+**Error Examples**:
+- `ElementNotFound: Could not find element 'ipa-network-config'`
+- `ElementNotFound: Could not find element 'ironic-agent'`
+- `disk-image-create ironic agent not found`
 
-**Solution**: Ensure `ELEMENTS_PATH` includes your element directory:
+**Solutions**:
+
+#### Solution 1: Custom Element Not Found (ipa-network-config)
+
+Ensure `ELEMENTS_PATH` includes your element directory:
 ```bash
 # Set ELEMENTS_PATH before building
 export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
@@ -198,6 +205,52 @@ export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
 # Or specify full path
 ironic-python-agent-builder ubuntu -o ipa-ramdisk \
     -e ~/ipa-build/elements/ipa-network-config
+```
+
+#### Solution 2: ironic-agent Element Not Found (when using disk-image-create)
+
+The `ironic-agent` element comes with `ironic-python-agent-builder`. When using `disk-image-create` directly, you need to add it to `ELEMENTS_PATH`:
+
+```bash
+# Find where ironic-python-agent-builder elements are installed
+IRONIC_ELEMENTS=$(python3 -c "import ironic_python_agent_builder; import os; print(os.path.join(os.path.dirname(ironic_python_agent_builder.__file__), 'elements'))" 2>/dev/null)
+
+# Find where diskimage-builder elements are installed
+DIB_ELEMENTS=$(python3 -c "import diskimage_builder; import os; print(os.path.join(os.path.dirname(diskimage_builder.__file__), 'elements'))" 2>/dev/null)
+
+# Set ELEMENTS_PATH to include both
+export ELEMENTS_PATH=${IRONIC_ELEMENTS}:${DIB_ELEMENTS}:${ELEMENTS_PATH:-}
+
+# Verify elements are found
+disk-image-create --help | grep ironic-agent || echo "Still not found"
+
+# Now use disk-image-create
+disk-image-create -o ipa-ramdisk \
+    ubuntu \
+    ironic-agent \
+    ipa-network-config
+```
+
+**Alternative**: Use `ironic-python-agent-builder` instead (recommended):
+```bash
+# ironic-python-agent-builder automatically includes ironic-agent
+ironic-python-agent-builder ubuntu -o ipa-ramdisk -e ipa-network-config
+```
+
+#### Solution 3: Find All Available Elements
+
+```bash
+# List all elements in ELEMENTS_PATH
+for path in $(echo $ELEMENTS_PATH | tr ':' ' '); do
+    if [ -d "$path" ]; then
+        echo "Elements in $path:"
+        ls -1 "$path" 2>/dev/null | head -10
+        echo ""
+    fi
+done
+
+# Or use disk-image-create to list
+disk-image-create --help 2>&1 | grep -A 100 "Available elements"
 ```
 
 ### Issue: Command Not Found: ironic-python-agent-builder
@@ -283,9 +336,20 @@ If you encounter other issues:
    df -h
    ```
 
-4. **Try the fallback method**:
+4. **Try the fallback method** (if `ironic-python-agent-builder` doesn't work):
    ```bash
-   # Use disk-image-create directly
+   # First, ensure ironic-agent element is available
+   # The ironic-agent element comes with ironic-python-agent-builder
+   # Find where it's installed:
+   python3 -c "import ironic_python_agent_builder; import os; print(os.path.dirname(ironic_python_agent_builder.__file__))"
+   
+   # Or find diskimage-builder elements:
+   python3 -c "import diskimage_builder; import os; print(os.path.dirname(diskimage_builder.__file__))"
+   
+   # Set ELEMENTS_PATH to include both
+   export ELEMENTS_PATH=$(python3 -c "import diskimage_builder; import os; print(os.path.join(os.path.dirname(diskimage_builder.__file__), 'elements'))"):$(python3 -c "import ironic_python_agent_builder; import os; print(os.path.join(os.path.dirname(ironic_python_agent_builder.__file__), 'elements'))"):${ELEMENTS_PATH:-}
+   
+   # Now use disk-image-create
    disk-image-create -o ipa-ramdisk \
        ubuntu \
        ironic-agent \
