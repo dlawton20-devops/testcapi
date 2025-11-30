@@ -46,14 +46,19 @@ sudo apt-get install -y \
     dosfstools
 
 # Install diskimage-builder and ironic-python-agent-builder
+# Option 1: System-wide (requires sudo)
 sudo pip3 install diskimage-builder ironic-python-agent-builder
 
+# Option 2: User-only (recommended, no sudo needed)
+pip3 install --user diskimage-builder ironic-python-agent-builder
+export PATH=$PATH:$HOME/.local/bin
+
 # Verify installation
+python3 -c "import diskimage_builder; print('✓ diskimage_builder OK')"
 ironic-python-agent-builder --help
 
-# If the command is not found, add pip user bin to PATH
-export PATH=$PATH:$HOME/.local/bin
-ironic-python-agent-builder --help
+# If you get "ModuleNotFoundError: no module named 'diskimage_builder'", see:
+# docs/ipa/BUILD_IPA_RAMDISK_TROUBLESHOOTING.md
 ```
 
 ## Step 2: Create Network Configuration Script

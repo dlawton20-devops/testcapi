@@ -2,6 +2,133 @@
 
 ## Common Issues
 
+### Issue: `ModuleNotFoundError: no module named 'diskimage_builder'`
+
+**Problem**: When running `ironic-python-agent-builder`, you get:
+```
+ModuleNotFoundError: no module named 'diskimage_builder'
+```
+
+**Root Causes**:
+1. `diskimage-builder` not installed
+2. Installed in different Python environment
+3. Python path issues
+4. Virtual environment not activated
+5. Package installed with `sudo pip3` but command uses different Python
+
+**Quick Diagnostic**:
+
+Run this to diagnose the issue:
+```bash
+# Check if module can be imported
+python3 -c "import diskimage_builder; print('✓ Module found at:', diskimage_builder.__file__)" 2>&1 || echo "✗ Module not found"
+
+# Check what's installed
+pip3 list | grep -i diskimage
+
+# Check where packages are installed
+pip3 show diskimage-builder 2>/dev/null | grep -E "Location|Version" || echo "✗ diskimage-builder not found"
+
+# Check PATH
+which ironic-python-agent-builder || echo "✗ ironic-python-agent-builder not in PATH"
+```
+
+**Solutions**:
+
+#### Solution 1: Reinstall for User (Recommended - No Sudo Needed)
+
+```bash
+# Uninstall if already installed
+pip3 uninstall diskimage-builder ironic-python-agent-builder -y 2>/dev/null || true
+
+# Reinstall for user (no sudo needed)
+pip3 install --user --force-reinstall --no-cache-dir diskimage-builder ironic-python-agent-builder
+
+# Add to PATH
+export PATH=$PATH:$HOME/.local/bin
+
+# Verify installation
+python3 -c "import diskimage_builder; print('✓ Module found')"
+ironic-python-agent-builder --help
+```
+
+#### Solution 1b: Install System-Wide (If User Install Doesn't Work)
+
+```bash
+# Uninstall first (if installed)
+sudo pip3 uninstall diskimage-builder ironic-python-agent-builder -y 2>/dev/null || true
+
+# Install system-wide
+sudo pip3 install --force-reinstall --no-cache-dir diskimage-builder ironic-python-agent-builder
+
+# Verify
+python3 -c "import diskimage_builder; print('✓ Module found')"
+```
+
+#### Solution 2: Check Python Environment
+
+```bash
+# Check which Python is being used
+which python3
+python3 --version
+
+# Check if diskimage-builder is installed
+python3 -c "import diskimage_builder; print(diskimage_builder.__file__)"
+
+# If that fails, check pip packages
+pip3 list | grep diskimage
+```
+
+#### Solution 3: Install in Virtual Environment (Recommended)
+
+```bash
+# Create virtual environment
+python3 -m venv ~/ipa-build-env
+
+# Activate it
+source ~/ipa-build-env/bin/activate
+
+# Install packages
+pip install diskimage-builder ironic-python-agent-builder
+
+# Verify installation
+python -c "import diskimage_builder; print('OK')"
+ironic-python-agent-builder --help
+
+# Now run your build
+ironic-python-agent-builder ubuntu -o ipa-ramdisk -e ipa-network-config
+```
+
+#### Solution 4: Fix Python Path
+
+If installed but not found:
+
+```bash
+# Find where diskimage-builder is installed
+python3 -m pip show diskimage-builder | grep Location
+
+# Add to PYTHONPATH (if needed)
+export PYTHONPATH=$(python3 -m pip show diskimage-builder | grep Location | cut -d' ' -f2):$PYTHONPATH
+
+# Or reinstall ensuring it's in the right place
+sudo pip3 install --force-reinstall --no-cache-dir diskimage-builder
+```
+
+#### Solution 5: Use System Package Manager (Ubuntu/Debian)
+
+```bash
+# Try installing via apt (if available)
+sudo apt-get update
+sudo apt-get install -y python3-diskimage-builder python3-ironic-python-agent-builder
+
+# Or install dependencies and use pip
+sudo apt-get install -y \
+    python3-pip \
+    python3-dev \
+    python3-setuptools \
+    build-essential
+```
+
 ### Issue: `dib_extra_packages=network-manager` Error
 
 **Problem**: You're trying to use `DIB_EXTRA_PACKAGES` environment variable but getting an error.
@@ -61,44 +188,36 @@ apt-cache search nmstate
 
 **Problem**: `ironic-python-agent-builder` can't find your custom element.
 
+**Error**: `ElementNotFound: Could not find element 'ipa-network-config'`
+
 **Solution**: Ensure `ELEMENTS_PATH` includes your element directory:
 ```bash
+# Set ELEMENTS_PATH before building
 export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
+
+# Or specify full path
+ironic-python-agent-builder ubuntu -o ipa-ramdisk \
+    -e ~/ipa-build/elements/ipa-network-config
 ```
 
-### Issue: Network Configuration Not Applied
+### Issue: Command Not Found: ironic-python-agent-builder
 
-**Problem**: IPA boots but network configuration script doesn't run.
+**Problem**: Command not found after installation.
 
-**Debug Steps**:
-1. Check if config drive is mounted:
-   ```bash
-   # In IPA console
-   blkid | grep config-2
-   lsblk
-   ```
+**Solution**:
+```bash
+# Check if it's installed
+pip3 show ironic-python-agent-builder
 
-2. Check service status:
-   ```bash
-   systemctl status configure-network.service
-   journalctl -u configure-network.service -n 50
-   ```
+# Find where it's installed
+pip3 show -f ironic-python-agent-builder | grep Location
 
-3. Check if network_data.json exists:
-   ```bash
-   mount /dev/sr0 /mnt  # or appropriate device
-   ls -la /mnt/openstack/latest/
-   cat /mnt/openstack/latest/network_data.json
-   ```
+# Add to PATH if installed in user directory
+export PATH=$PATH:$HOME/.local/bin
 
-### Issue: nmc Command Not Found
-
-**Problem**: The `nmc` (NM Configurator) command is not available in IPA.
-
-**Solution**: 
-- The script includes a fallback method that uses Python to configure the network
-- Or ensure `python3-nmstate` package is installed in the element
-- Check if nmstate is available for your Ubuntu release
+# Or use python -m
+python3 -m ironic_python_agent_builder --help
+```
 
 ### Issue: Build Takes Too Long
 
@@ -110,6 +229,20 @@ export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
 - Consider using a VM with more resources
 - Build process typically takes 10-20 minutes
 
+### Issue: Wrong Python Version
+
+**Problem**: Build fails due to Python version incompatibility.
+
+**Solution**:
+```bash
+# Check Python version (needs 3.6+)
+python3 --version
+
+# If using wrong version, specify correct one
+python3.8 -m pip install diskimage-builder ironic-python-agent-builder
+python3.8 -m ironic_python_agent_builder --help
+```
+
 ## Environment Variables
 
 ### Supported Variables
@@ -117,6 +250,7 @@ export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
 - `DIB_RELEASE`: Ubuntu release (e.g., `jammy`, `focal`)
 - `ELEMENTS_PATH`: Path to custom elements (colon-separated)
 - `WITH_NMC`: Whether to include nmstate (true/false)
+- `DIB_DEBUG_TRACE`: Enable debug tracing (set to `1`)
 
 ### Not Supported
 
@@ -128,9 +262,159 @@ export ELEMENTS_PATH=~/ipa-build/elements:${ELEMENTS_PATH:-}
 
 If you encounter other issues:
 
-1. Check the build logs for specific error messages
-2. Verify all prerequisites are installed
-3. Try the fallback method using `disk-image-create` directly
-4. Check the [Ironic Python Agent documentation](https://docs.openstack.org/ironic-python-agent/latest/)
-5. Review the [Diskimage Builder documentation](https://docs.openstack.org/diskimage-builder/latest/)
+1. **Enable debug output**:
+   ```bash
+   export DIB_DEBUG_TRACE=1
+   ironic-python-agent-builder ubuntu -o ipa-ramdisk -e ipa-network-config
+   ```
 
+2. **Check build logs**:
+   ```bash
+   # Logs are usually in /tmp or current directory
+   ls -la /tmp/dib-*
+   ```
+
+3. **Verify all prerequisites**:
+   ```bash
+   # Check required tools
+   which python3 pip3 git qemu-img
+   
+   # Check disk space
+   df -h
+   ```
+
+4. **Try the fallback method**:
+   ```bash
+   # Use disk-image-create directly
+   disk-image-create -o ipa-ramdisk \
+       ubuntu \
+       ironic-agent \
+       ipa-network-config
+   ```
+
+5. **Check the documentation**:
+   - [Ironic Python Agent documentation](https://docs.openstack.org/ironic-python-agent/latest/)
+   - [Diskimage Builder documentation](https://docs.openstack.org/diskimage-builder/latest/)
+
+## Diagnostic Script
+
+Here's a script to diagnose installation issues:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+echo "Diagnosing diskimage-builder installation issue..."
+echo ""
+
+# Check Python
+echo "1. Checking Python..."
+which python3
+python3 --version
+
+# Check if module can be imported
+echo ""
+echo "2. Testing diskimage_builder import..."
+python3 -c "import diskimage_builder; print('✓ Module found at:', diskimage_builder.__file__)" 2>&1 || echo "✗ Module not found"
+
+# Check pip packages
+echo ""
+echo "3. Checking installed packages..."
+pip3 list | grep -i diskimage || echo "✗ No diskimage packages found"
+
+# Check where packages are installed
+echo ""
+echo "4. Checking package locations..."
+pip3 show diskimage-builder 2>/dev/null | grep -E "Location|Version" || echo "✗ diskimage-builder not found via pip3"
+
+# Check PATH
+echo ""
+echo "5. Checking PATH..."
+echo "PATH: $PATH"
+which ironic-python-agent-builder || echo "✗ ironic-python-agent-builder not in PATH"
+
+echo ""
+echo "=== Recommended Fix ==="
+echo "Try one of these:"
+echo ""
+echo "Option 1: Reinstall for user (recommended)"
+echo "  pip3 install --user --force-reinstall diskimage-builder ironic-python-agent-builder"
+echo "  export PATH=\$PATH:\$HOME/.local/bin"
+echo ""
+echo "Option 2: Install system-wide"
+echo "  sudo pip3 install --force-reinstall diskimage-builder ironic-python-agent-builder"
+echo ""
+echo "Option 3: Use virtual environment"
+echo "  python3 -m venv ~/ipa-build-env"
+echo "  source ~/ipa-build-env/bin/activate"
+echo "  pip install diskimage-builder ironic-python-agent-builder"
+```
+
+## Quick Fix Script
+
+Here's a script to automatically fix common installation issues:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+echo "Fixing diskimage-builder installation..."
+
+# Check Python
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 not found"
+    exit 1
+fi
+
+# Uninstall existing (if any)
+echo "Uninstalling existing packages..."
+pip3 uninstall -y diskimage-builder ironic-python-agent-builder 2>/dev/null || true
+
+# Install fresh for user (no sudo needed)
+echo "Installing diskimage-builder and ironic-python-agent-builder..."
+pip3 install --user --force-reinstall --no-cache-dir diskimage-builder ironic-python-agent-builder
+
+# Add to PATH
+export PATH=$PATH:$HOME/.local/bin
+
+# Verify
+echo "Verifying installation..."
+python3 -c "import diskimage_builder; print('✓ diskimage_builder imported successfully')" || {
+    echo "✗ Failed to import diskimage_builder"
+    echo "Trying system-wide install..."
+    sudo pip3 install --force-reinstall --no-cache-dir diskimage-builder ironic-python-agent-builder
+    python3 -c "import diskimage_builder; print('✓ diskimage_builder imported successfully')" || {
+        echo "✗ Still failed. Try virtual environment method."
+        exit 1
+    }
+}
+
+ironic-python-agent-builder --help > /dev/null || {
+    echo "✗ ironic-python-agent-builder not found in PATH"
+    echo "Try: export PATH=\$PATH:\$HOME/.local/bin"
+    exit 1
+}
+
+echo "✓ Installation successful!"
+echo ""
+echo "You can now run:"
+echo "  export PATH=\$PATH:\$HOME/.local/bin"
+echo "  ironic-python-agent-builder ubuntu -o ipa-ramdisk -e ipa-network-config"
+```
+
+**Usage**:
+```bash
+# Save the diagnostic script
+cat > /tmp/diagnose-dib.sh << 'EOF'
+# [paste diagnostic script above]
+EOF
+chmod +x /tmp/diagnose-dib.sh
+/tmp/diagnose-dib.sh
+
+# Or save the fix script
+cat > /tmp/fix-dib.sh << 'EOF'
+# [paste fix script above]
+EOF
+chmod +x /tmp/fix-dib.sh
+/tmp/fix-dib.sh
+```
