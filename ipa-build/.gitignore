@@ -1,0 +1,5 @@
+# Ignore build outputs
+*.kernel
+*.initramfs
+*.sha256
+*.d/
